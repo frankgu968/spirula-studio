@@ -542,8 +542,13 @@ switch off: the parsers rotate every dataset so the mean camera up axis
 becomes +Z, which on the X5 walk is 11.4 deg from the IMU's answer, and that
 rotation is what turntable and first-person navigation orbit about. The switch
 is offered wherever the rotation is not the identity, and undoes only that
-rotation — an `applied_transform` a file came with is left alone. The second
-bit puts the grid's cell size on screen as a length, so a metric model can be
+rotation — an `applied_transform` a file came with is left alone. Next to it
+sits the **center** menu, which picks what the view orbits about (camera
+position median by default; `src/data/SceneCenter.h`) and moves only the
+camera. All three viewers offer it: the native viewport reads the table off
+`ViewerRenderConfig`, and the browser clients ask for it — `/scene` for the
+training viewer, `ssv_ds_fit_sphere` for the standalone one. The second bit
+puts the grid's cell size on screen as a length, so a metric model can be
 measured by looking at it.
 
 The GUI also stopped hiding the inputs. Each video row says whether the file

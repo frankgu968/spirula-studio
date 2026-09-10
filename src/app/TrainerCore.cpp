@@ -1,6 +1,7 @@
 // TrainerCore.cpp -- see TrainerCore.h.
 
 #include "app/TrainerCore.h"
+#include "data/SceneTransform.h"
 #include "app/EvalMetrics.h"
 #include "checkpoint/Adapt.h"
 #include "checkpoint/Resume.h"
@@ -223,7 +224,7 @@ SeedSplats seed_splats(const ColmapPoints3D& pts, const TrainConfig& cfg,
     float rescale = cfg.relative_scale.value_or(1.0f);
     for (int64_t i = 0; i < num; i++)
         for (int d = 0; d < 3; d++)
-            s.means[i*3 + d] = pts.xyz[pick[i]*3 + d] * rescale;
+            s.means[i*3 + d] = (float)(pts.xyz[pick[i]*3 + d] * rescale);
 
     // log(scale_init * sqrt(mean d^2 of 4-NN)) over xyz, over the DISTINCT
     // points: a repeat is its own zero-distance neighbor, and would seed
@@ -509,18 +510,26 @@ EngineStepConfig build_step_config(const TrainConfig& c, const RunState& st, int
 // config.json dump
 // ===========================================================================
 
-// Flat dump: one key per flag, spelled exactly as the flag is. It used to be
-// nested under the field table's group column, which quietly made a
-// presentational choice part of an on-disk format -- moving a flag to another
-// heading moved its key, and a reader that could not find it silently fell
-// back to the default. Flat, a heading can be renamed or reshuffled without
-// touching anything that reads this file (`spirula mesh`, --resume).
-//
-// Macro flags (--quality and friends) are written alongside the values they
-// resolved to, so a reader takes the values and never re-resolves them.
-//
-// The encoding itself is config/TrainConfigJson.h, shared with --resume's
-// reader and the GUI's saved presets so the three cannot disagree.
+// p_train = relative_scale * (p_dataset - center): the parser's shift and the
+// trainer's own rescale, which is every way the splats' frame differs from
+// the dataset's.
+void save_scene_transform_json(const ParsedDataset& ds, const TrainConfig& c,
+                               const fs::path& out_dir) {
+    SceneTransform T;
+    T.scale = (double)c.relative_scale.value_or(1.0f);
+    for (int i = 0; i < 3; i++) T.t[i] = -T.scale * ds.center[i];
+    const std::string text =
+        scene_transform_json(T, ds.center_mode, ds.center.data());
+    const fs::path path = out_dir / "scene_transform.json";
+    FILE* f = std::fopen(path.string().c_str(), "w");
+    if (!f) throw std::runtime_error("cannot write " + path.string());
+    std::fputs(text.c_str(), f);
+    std::fclose(f);
+}
+
+// Flat, one key per flag: a key that followed the field table's heading
+// moved whenever a flag was reshuffled, and readers fell back to the default.
+// Macro flags are written beside what they resolved to; config/TrainConfigJson.h.
 void save_config_json(const TrainConfig& c, const fs::path& out_dir,
                       const std::string& preset) {
     FILE* f = std::fopen((out_dir / "config.json").string().c_str(), "w");
@@ -602,6 +611,7 @@ void TrainerSession::load_dataset() {
     pcfg.eval_interval        = cfg.eval_interval;
     pcfg.train_split_fraction = cfg.train_split_fraction;
     pcfg.outlier_threshold    = cfg.outlier_threshold;
+    pcfg.center_mode          = cfg.scene_center;
     pcfg.probe_image_size        = probe_image_size;
     pcfg.train_resolution_divisor = cfg.train_resolution_divisor;
     pcfg.downscale_rounding_mode = cfg.downscale_rounding_mode;
@@ -609,6 +619,12 @@ void TrainerSession::load_dataset() {
     pcfg.metashape_ply           = cfg.metashape_ply;
     pcfg.metashape_psx           = cfg.metashape_psx;
     ds = parse_dataset(cfg.data, pcfg, cfg.data_format);
+    if (ds.center_mode != "none") {
+        char xyz[96];
+        std::snprintf(xyz, sizeof xyz, "%.12g, %.12g, %.12g",
+                      ds.center[0], ds.center[1], ds.center[2]);
+        log(lfmt(lmsg::scene_centered, {ds.center_mode, xyz}));
+    }
 
     // An EXR carries its own colour space, and nothing downstream can recover
     // it: DataManager hands the engine the file's raw scene-linear floats. The
@@ -768,8 +784,10 @@ void TrainerSession::setup_engine() {
                   (fs::path(cfg.data).stem().string() + "_" + stamp);
     }
     fs::create_directories(out_dir);
-    if (write_config_json)
+    if (write_config_json) {
         save_config_json(cfg, out_dir, preset);
+        save_scene_transform_json(ds, cfg, out_dir);
+    }
     log(lfmt(lmsg::output_directory, {fs::absolute(out_dir).string()}));
 
     // ---- Engine setup -------------------------------------------------
@@ -1221,6 +1239,8 @@ ViewerRenderConfig TrainerSession::make_viewer_config() const {
                            cfg.normal_distortion_reg != 0.0f;
     const auto color = resolve_color(cfg);
     vc.color_space_on = color.splat_on();
+    vc.centers = dsparse::scene_centers(ds);
+    vc.center_cameras = ds.num_cameras > 0;
     vc.train_frame_scale = ds.train_frame_scale;
     vc.train_to_normalized = ds.train_to_normalized;
     vc.base_camera_size = viewer_base_camera_size;
@@ -1279,6 +1299,7 @@ void TrainerSession::eval() {
     pcfg.eval_interval        = cfg.eval_interval;
     pcfg.train_split_fraction = cfg.train_split_fraction;
     pcfg.outlier_threshold    = cfg.outlier_threshold;
+    pcfg.center_mode          = cfg.scene_center;
     pcfg.probe_image_size        = probe_image_size;
     pcfg.train_resolution_divisor = cfg.train_resolution_divisor;
     pcfg.downscale_rounding_mode = cfg.downscale_rounding_mode;

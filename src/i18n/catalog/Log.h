@@ -1076,6 +1076,23 @@ SS_MSG(parsed_dataset,
     TR("Kamera: {0} (bölmeden sonra {1}), başlangıç noktası: {2} "
        "(train_frame_scale={3})"));
 
+// {1} is "x, y, z" in the dataset's frame; the shift lives on in
+// scene_transform.json, so this line is what a reader of the log sees first.
+SS_MSG(scene_centered,
+    EN("Scene origin ({0}): {1} in the dataset's own frame"),
+    JA("シーンの原点（{0}）: データセット自身の座標系で {1}"),
+    ZH_HANS("场景原点（{0}）：数据集自身坐标系中的 {1}"),
+    ZH_HANT("場景原點（{0}）：資料集自身座標系中的 {1}"),
+    KO("장면 원점({0}): 데이터셋 자체 좌표계에서 {1}"),
+    DE("Szenenursprung ({0}): {1} im eigenen Bezugssystem des Datensatzes"),
+    FR("Origine de la scène ({0}) : {1} dans le repère propre du jeu de données"),
+    ES("Origen de la escena ({0}): {1} en el sistema propio del conjunto de datos"),
+    PT("Origem da cena ({0}): {1} no referencial próprio do conjunto de dados"),
+    IT("Origine della scena ({0}): {1} nel sistema proprio del dataset"),
+    NL("Oorsprong van de scène ({0}): {1} in het eigen stelsel van de dataset"),
+    RU("Начало координат сцены ({0}): {1} в собственной системе набора данных"),
+    TR("Sahne başlangıcı ({0}): veri kümesinin kendi çerçevesinde {1}"));
+
 // Printed only when --input-depth-is-ray-depth was left unset and there are
 // depth maps to read; {0} is the convention the lens picked.
 SS_MSG(ray_depth_resolved,

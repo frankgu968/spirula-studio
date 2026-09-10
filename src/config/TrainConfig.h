@@ -138,6 +138,7 @@ inline int train_tier_rank(const char* tier) {
     X(std::string, center_method, "poses", "scene", "expert", "poses|focus|none|gsplat") \
     X(bool, auto_scale_poses, true, "scene", "expert", "")                   \
     X(float, outlier_threshold, kTrainInf, "scene", "basic", "")             \
+    X(std::string, scene_center, "none", "scene", "basic", "none|point-median|camera-median|camera-focus|point-mean|camera-mean") \
     X(std::optional<float>, relative_scale, std::nullopt, "scene", "expert", "") \
     X(std::string, train_frame, "points", "scene", "expert", "normalized|camera|points") \
                                                                              \
@@ -347,7 +348,7 @@ struct TrainConfig {
     X(depth_dir) X(normal_dir) X(metashape_xml) X(metashape_ply) \
     X(metashape_psx) X(train_resolution_divisor) X(downscale_rounding_mode) \
     X(orientation_method) X(center_method) X(auto_scale_poses) \
-    X(outlier_threshold) X(train_frame) X(eval_mode) X(train_split_fraction) \
+    X(outlier_threshold) X(scene_center) X(train_frame) X(eval_mode) X(train_split_fraction) \
     X(eval_interval) X(depth_unit_scale_factor) X(validation_fraction) \
     X(warp_to_pinhole) X(warp_spherical_to_pinhole) X(warp_face_fit) \
     X(warp_back_face) \

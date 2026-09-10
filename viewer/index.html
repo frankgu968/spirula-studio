@@ -185,6 +185,17 @@
         </div>
       </div>
       <div class="row">
+        <div class="label"><span>Center</span></div>
+        <select autocomplete="off" id="center-mode" title="What the view orbits about and fits to. Camera statistics need a dataset; over a splat or mesh file they fall back to the point ones.">
+          <option value="0">None (model origin)</option>
+          <option value="1">Point cloud median</option>
+          <option value="2" selected>Camera position median</option>
+          <option value="3">Camera focus</option>
+          <option value="4">Point cloud mean</option>
+          <option value="5">Camera position mean</option>
+        </select>
+      </div>
+      <div class="row">
         <div class="label"><span>Show Axes / Grid</span>
           <label class="toggle"><input autocomplete="off" type="checkbox" id="grid"><span class="track"></span></label>
         </div>

@@ -168,7 +168,7 @@ ColmapPoints3D read_points3D_binary(const std::string& recon_dir) {
     pts.rgb.reserve(n * 3);
     for (uint64_t i = 0; i < n; i++) {
         r.skip(sizeof(uint64_t));                       // point3D_id
-        for (int k = 0; k < 3; k++) pts.xyz.push_back((float)r.read<double>());
+        for (int k = 0; k < 3; k++) pts.xyz.push_back(r.read<double>());
         for (int k = 0; k < 3; k++) pts.rgb.push_back(r.read<uint8_t>());
         r.skip(sizeof(double));                         // reprojection error
         uint64_t track_len = r.read<uint64_t>();
@@ -287,7 +287,7 @@ ColmapPoints3D read_points3D_text(const std::string& recon_dir) {
     while (r.next_line(&s, &e)) {
         char* p;
         fast_strtol(s, &p);                  // point3D_id
-        for (int k = 0; k < 3; k++) pts.xyz.push_back((float)fast_strtod(p, &p));
+        for (int k = 0; k < 3; k++) pts.xyz.push_back(fast_strtod(p, &p));
         for (int k = 0; k < 3; k++) pts.rgb.push_back((uint8_t)fast_strtol(p, &p));
         // reprojection error + track: rest of line, skipped
     }
@@ -523,16 +523,16 @@ void qvec2rotmat(const std::array<double, 4>& q, double R[3][3]) {
 // COLMAP w2c -> nerfstudio/OpenGL c2w:
 //   c2w[:3,:3] = R^T with columns 1, 2 negated (OpenCV -> OpenGL axis flip)
 //   c2w[:3,3]  = -R^T @ t
-void colmap_to_c2w(const ColmapImage& im, float* out12) {
+void colmap_to_c2w(const ColmapImage& im, double* out12) {
     double R[3][3];
     qvec2rotmat(im.qvec, R);
     static const double flip[3] = {1.0, -1.0, -1.0};
     for (int r = 0; r < 3; r++) {
         for (int c = 0; c < 3; c++)
-            out12[r*4 + c] = (float)(R[c][r] * flip[c]);
+            out12[r*4 + c] = R[c][r] * flip[c];
         double t = 0.0;
         for (int c = 0; c < 3; c++) t -= R[c][r] * im.tvec[c];
-        out12[r*4 + 3] = (float)t;
+        out12[r*4 + 3] = t;
     }
 }
 
@@ -772,7 +772,7 @@ ParsedDataset parse_colmap_dataset(const std::string& dataset_dir,
 
     // ---- All-frame c2w (needed for outlier filter + train_frame_scale) ----
     int64_t n_all = (int64_t)frames.size();
-    std::vector<float> c2w_all(n_all * 12);
+    std::vector<double> c2w_all(n_all * 12);
     std::vector<double> positions(n_all * 3);
     for (int64_t i = 0; i < n_all; i++) {
         colmap_to_c2w(*frames[i], &c2w_all[i*12]);
@@ -784,7 +784,7 @@ ParsedDataset parse_colmap_dataset(const std::string& dataset_dir,
         std::vector<char> keep = dsparse::outlier_keep_mask(
             positions, n_all, cfg.outlier_threshold);
         std::vector<const ColmapImage*> kept;
-        std::vector<float> kept_c2w;
+        std::vector<double> kept_c2w;
         for (int64_t i = 0; i < n_all; i++) {
             if (!keep[i]) continue;
             kept.push_back(frames[i]);
@@ -795,13 +795,31 @@ ParsedDataset parse_colmap_dataset(const std::string& dataset_dir,
         n_all = (int64_t)frames.size();
     }
 
+    // In lenient (viewer) mode, tolerate a missing points3D file so a
+    // cameras-only reconstruction still yields camera poses / frustums.
+    ColmapPoints3D points;
+    if (fmt.points3D == ColmapFmt::Bin)
+        points = read_points3D_binary(recon_dir);
+    else if (fmt.points3D == ColmapFmt::Text)
+        points = read_points3D_text(recon_dir);
+
+    // ---- Centering, over ALL post-outlier frames and every point, while
+    // both are still double --------------------------------------------------
+    const dsparse::CenterMode center_mode = dsparse::center_mode_from_name(cfg.center_mode);
+    const std::array<double, 3> center = dsparse::scene_center(
+        center_mode, c2w_all.data(), n_all, points.xyz.data(), points.num());
+    for (int64_t i = 0; i < n_all; i++)
+        for (int r = 0; r < 3; r++) c2w_all[i*12 + r*4 + 3] -= center[r];
+    for (int64_t i = 0; i < points.num(); i++)
+        for (int r = 0; r < 3; r++) points.xyz[i*3 + r] -= center[r];
+
     // ---- train_frame_scale + viewer remap transform over ALL post-outlier
     // frames (train + eval, matching the Python dataparser, which splits
     // after normalization). No applied_transform on the COLMAP path, so
     // train_to_normalized = inv(T_n_from_camera). -----------------------------
     double T_n[16], T_inv[16], R_align[9];
     double scale_factor =
-        dsparse::compute_normalized_transform(c2w_all, n_all, T_n, R_align);
+        dsparse::compute_normalized_transform(c2w_all.data(), n_all, T_n, R_align);
     dsparse::invert_affine4x4(T_n, T_inv);
     float train_frame_scale = (float)(scale_factor != 0.0 ? 1.0 / scale_factor : 1.0);
 
@@ -818,6 +836,9 @@ ParsedDataset parse_colmap_dataset(const std::string& dataset_dir,
     ds.train_frame_scale = train_frame_scale;
     for (int k = 0; k < 16; k++) ds.train_to_normalized[k] = (float)T_inv[k];
     for (int k = 0; k < 9; k++) ds.normalized_rotation[k] = (float)R_align[k];
+    ds.center = center;
+    ds.center_mode = dsparse::kCenterModeNames[(int)center_mode];
+    ds.points = std::move(points);
     read_gauge(recon_dir, ds);
     ds.camera_models.reserve(N);
     ds.camera_distortions.reserve(N);
@@ -882,7 +903,7 @@ ParsedDataset parse_colmap_dataset(const std::string& dataset_dir,
         ds.camera_distortions.push_back((int32_t)bi.distortion);
         if (any_redistort) ds.redistort[j] = bi.source;
 
-        std::copy(&c2w_all[i*12], &c2w_all[i*12] + 12, &ds.c2w[j*12]);
+        for (int k = 0; k < 12; k++) ds.c2w[j*12 + k] = (float)c2w_all[i*12 + k];
 
         // Auxiliary supervision buffers, discovered by filename convention.
         mask_files[j]   = dsparse::find_aux_file(
@@ -899,12 +920,6 @@ ParsedDataset parse_colmap_dataset(const std::string& dataset_dir,
     if (any_depth)  ds.depth_filenames  = std::move(depth_files);
     if (any_normal) ds.normal_filenames = std::move(normal_files);
 
-    // In lenient (viewer) mode, tolerate a missing points3D file so a
-    // cameras-only reconstruction still yields camera poses / frustums.
-    if (fmt.points3D == ColmapFmt::Bin)
-        ds.points = read_points3D_binary(recon_dir);
-    else if (fmt.points3D == ColmapFmt::Text)
-        ds.points = read_points3D_text(recon_dir);
     // validation_fraction holds out part of the TRAIN set; the eval split is
     // already a held-out set, so it is all "train" from the DataManager's
     // point of view.

@@ -29,6 +29,7 @@
 // strtod/strtof cost ~1.5us per call — tens of seconds over a 100+ MB OBJ
 // or ascii PLY.
 #include "data/FastFloat.h"
+#include "data/SceneCenter.h"
 
 #define KEEP EMSCRIPTEN_KEEPALIVE extern "C"
 
@@ -1255,12 +1256,11 @@ KEEP float* ssv_bbox(){
     return g_bbox;
 }
 
-// Robust fitting sphere of the current model: per-axis median center and the
-// median distance from it -> 4 floats (cx, cy, cz, median_dist). Trained
-// splats and generated meshes often contain far-away outliers that blow up a
-// bounding-box fit; medians ignore them. Subsamples uniformly for speed.
+// (cx, cy, cz, median_dist) about the dsparse::CenterMode `mode`; a file has
+// no cameras, so the camera modes fall back to the point ones. Medians,
+// because trained splats and meshes carry far-away outliers a box fit cannot.
 static float g_fitsph[4];
-KEEP float* ssv_fit_sphere(){
+KEEP float* ssv_fit_sphere(int mode){
     const float* P = nullptr; uint32_t N = 0, stride = 3;
     if (g_last_kind == 1) { P = g_splat.posop.data(); N = g_splat.count; stride = 4; }
     else if (g_last_kind == 2) { P = g_mesh.pos.data(); N = g_mesh.nv; stride = 3; }
@@ -1268,14 +1268,11 @@ KEEP float* ssv_fit_sphere(){
     const uint32_t MAXS = 1u<<20;
     uint32_t step = (N + MAXS - 1) / MAXS; if (step < 1) step = 1;
     uint32_t M = (N + step - 1) / step;
+    mode = std::max(0, std::min(mode, dsparse::kNumCenterModes - 1));
+    const std::array<double, 3> c = dsparse::scene_center(
+        (dsparse::CenterMode)mode, nullptr, 0, P, (int64_t)N, (int)stride, (int64_t)MAXS);
+    for (int k = 0; k < 3; k++) g_fitsph[k] = (float)c[k];
     std::vector<float> tmp; tmp.reserve(M);
-    for (int k = 0; k < 3; k++) {
-        tmp.clear();
-        for (uint32_t i = 0; i < N; i += step) tmp.push_back(P[(size_t)i*stride+k]);
-        std::nth_element(tmp.begin(), tmp.begin()+tmp.size()/2, tmp.end());
-        g_fitsph[k] = tmp[tmp.size()/2];
-    }
-    tmp.clear();
     for (uint32_t i = 0; i < N; i += step) {
         float dx=P[(size_t)i*stride]-g_fitsph[0], dy=P[(size_t)i*stride+1]-g_fitsph[1], dz=P[(size_t)i*stride+2]-g_fitsph[2];
         tmp.push_back(dx*dx+dy*dy+dz*dz);

@@ -2281,6 +2281,51 @@ SS_MSG(viewport_level_cameras_help,
        "döndürür. Bu bir tahmindir ve eğik ya da ters 360 çekimlerde kötüdür; "
        "kapalıyken modelin kendi eksenleri kullanılır."));
 
+SS_MSG(viewport_center,
+    EN("center"),        JA("中心"),          ZH_HANS("中心"),     ZH_HANT("中心"),
+    KO("중심"),           DE("Zentrum"),      FR("centre"),       ES("centro"),
+    PT("centro"),        IT("centro"),       NL("centrum"),      RU("центр"),
+    TR("merkez"));
+
+SS_MSG(viewport_center_help,
+    EN("The point the view orbits about and Reset view frames: a statistic of "
+       "the cameras or of the points, or the model's own origin. This moves "
+       "only the view, never the model."),
+    JA("視点が回転する中心であり、ビューのリセットで画面に収める点です。カメラ"
+       "または点の統計値か、モデル自身の原点を選びます。動くのは視点だけで、モデル"
+       "は動きません。"),
+    ZH_HANS("视图绕其旋转、重置视图时对准的点：相机或点的某种统计量，或模型自身的"
+            "原点。只移动视图，不移动模型。"),
+    ZH_HANT("檢視繞其旋轉、重設檢視時對準的點：相機或點的某種統計量，或模型自身的"
+            "原點。只移動檢視，不移動模型。"),
+    KO("시점이 회전하는 중심이자 뷰 재설정이 맞추는 점입니다. 카메라나 점의 "
+       "통계값, 또는 모델 자체의 원점 중에서 고릅니다. 시점만 움직이며 모델은 "
+       "움직이지 않습니다."),
+    DE("Der Punkt, um den die Ansicht kreist und den das Zurücksetzen einrahmt: "
+       "eine Statistik der Kameras oder der Punkte, oder der Ursprung des "
+       "Modells. Bewegt nur die Ansicht, nie das Modell."),
+    FR("Le point autour duquel la vue tourne et que la réinitialisation cadre : "
+       "une statistique des caméras ou des points, ou l'origine du modèle. Ne "
+       "déplace que la vue, jamais le modèle."),
+    ES("El punto alrededor del cual gira la vista y que el reinicio encuadra: "
+       "una estadística de las cámaras o de los puntos, o el origen del modelo. "
+       "Solo mueve la vista, nunca el modelo."),
+    PT("O ponto em torno do qual a vista gira e que o reinício enquadra: uma "
+       "estatística das câmeras ou dos pontos, ou a origem do modelo. Só move a "
+       "vista, nunca o modelo."),
+    IT("Il punto attorno a cui ruota la vista e che il ripristino inquadra: una "
+       "statistica delle camere o dei punti, oppure l'origine del modello. "
+       "Sposta solo la vista, mai il modello."),
+    NL("Het punt waar het beeld omheen draait en dat beeld herstellen in beeld "
+       "brengt: een statistiek van de camera's of de punten, of de oorsprong van "
+       "het model. Verplaatst alleen het beeld, nooit het model."),
+    RU("Точка, вокруг которой вращается вид и на которую его наводит сброс: "
+       "статистика камер или точек либо начало координат модели. Двигает только "
+       "вид, но не модель."),
+    TR("Görünümün etrafında döndüğü ve görünüm sıfırlamanın çerçevelediği "
+       "nokta: kameraların ya da noktaların bir istatistiği veya modelin kendi "
+       "başlangıcı. Yalnızca görünümü oynatır, modeli asla."));
+
 SS_MSG(viewport_scale,
     EN("resolution"),    JA("解像度"),       ZH_HANS("分辨率"),   ZH_HANT("解析度"),
     KO("해상도"),        DE("Auflösung"),   FR("résolution"),  ES("resolución"),

@@ -107,6 +107,14 @@ plain C++17 with no CUDA dependency (see `csrc/CameraModel.h`).
   optical axis). Splats use a one-pixel GPU depth pass; meshes use a WASM
   raycast; datasets pick the nearest point along the view ray. Works with every
   camera model.
+- The **Center** menu (Scene section, next to the up-axis toggle) picks what
+  the view orbits about and fits to: the model's origin, the point cloud's
+  geometric median or mean, or over a dataset the camera positions' median or
+  mean or the point the cameras look at. Camera position median is the
+  default; over a splat or mesh file, which has no cameras, the camera entries
+  are disabled and the point statistics stand in. The same six modes are the
+  trainer's `--scene-center` and the native GUI viewport's menu
+  (`src/data/SceneCenter.h` is the one implementation).
 - One model at a time — dropping another replaces it and frees the previous GPU
   buffers. Replacing keeps the current viewpoint (the camera is only fitted for
   the first model; refresh the page to start over).

@@ -2,6 +2,7 @@
 
 #include "app/gui/SfmInProcess.h"
 
+#ifdef SS_TOOL_SFM
 #include "sfm/Pipeline.h"
 #include "sfm/core/Cancel.h"
 #include "sfm/core/Events.h"
@@ -9,8 +10,29 @@
 #include "sfm/core/Progress.h"
 
 #include "i18n/catalog/Sfm.h"
+#else
+#include "i18n/catalog/Log.h"
+#endif
 
 namespace gui {
+
+#ifndef SS_TOOL_SFM
+
+// SfmRunner::availability() refuses a run long before this, so reaching it is
+// a bug rather than a configuration; it still says which.
+InProcessResult run_sfm_in_process(
+    const std::vector<std::string>& args,
+    const std::function<void(const std::string&)>& log,
+    const std::function<void(const RunStatus&)>& on_status,
+    const std::atomic<bool>& cancel) {
+    (void)args; (void)log; (void)on_status; (void)cancel;
+    InProcessResult out;
+    out.exit_code = -1;
+    out.error = spirula::i18n::msg::log::err_no_sfm_module.get();
+    return out;
+}
+
+#else
 
 namespace {
 
@@ -126,5 +148,7 @@ InProcessResult run_sfm_in_process(
     }
     return out;
 }
+
+#endif  // SS_TOOL_SFM
 
 }  // namespace gui

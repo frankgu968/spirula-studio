@@ -718,7 +718,7 @@ bool PreviewRenderer::build(const ParsedDataset& ds, const PostSplitCameras& pos
         for (int i = 0; i < 16; i++) T[i] = ds.train_to_normalized[i];
         dsparse::invert_affine4x4(T, A);
     }
-    auto map_pt = [&](const float p[3], float out[3]) {
+    auto map_pt = [&](const auto* p, float out[3]) {
         for (int r = 0; r < 3; r++)
             out[r] = (float)(A[r*4+0]*p[0] + A[r*4+1]*p[1] + A[r*4+2]*p[2] + A[r*4+3]);
     };

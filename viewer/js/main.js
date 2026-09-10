@@ -1,7 +1,7 @@
 // Application entry: wires the WASM loader, WebGL renderer, camera controller,
 // and the UI panel together.
 
-import { initWasm, loadModel, sortSplats, freeSplatSh, reduceSh, splatHistogram, meshHistogram, meshEdgeCount, fitSphere, raycastMesh, dsFree, dsPickPoint } from './wasm.js';
+import { initWasm, loadModel, sortSplats, freeSplatSh, reduceSh, splatHistogram, meshHistogram, meshEdgeCount, fitSphere, raycastMesh, dsFree, dsFitSphere, dsPickPoint } from './wasm.js';
 import { loadDatasetFiles, parseDatasetComponent } from './dataset.js';
 import { Renderer } from './renderer.js';
 import { Camera, Nav } from './camera.js';
@@ -20,13 +20,15 @@ const opts = {
   primitive: 0, gamut: toColMajor(GAMUTS['Rec.709']), transfer: 0, isLinear: false,
   shDegree: 0, exposure: 1.0, opacityScale: 1.0,
   cameraModel: 'perspective', upAxis: 'z', showGrid: true, gridRadius: 1,
+  // what the view orbits about (#center-mode; dsparse::CenterMode index)
+  centerMode: 2,
   background: hexToRgb('0a0b0e'), shade: true, flatShade: false, meshColor: true,
   // dataset (point cloud + camera frustums)
   pointSize: 2.0, frustumScale: 1.0, showPoints: true, showFrustums: true, hoverCam: -1,
 };
 
 // dataset session state (cameras metadata for hover/pick/view-from-camera)
-let dataset = null;   // { cameras, components, token, fit, frustumBase, frustumMult, pickR }
+let dataset = null;   // { cameras, components, token, frustumBase, frustumMult, pickR }
 
 // Valid FOV range (degrees) per display camera model: tan blows up toward
 // 180° for the linear models; the fisheye projections are defined to 360°.
@@ -129,6 +131,8 @@ window.__viewer = {
   snapshot: () => { if (model && model.type==='splat') maybeSort(true); renderer.render(camera, opts); return renderer.snapshot(); },
   get sortStats() { return sortStats; },
   get dataset() { return dataset; },
+  // [cx, cy, cz, radius] of the loaded model about the chosen centering
+  get fit() { return model && model.type === 'dataset' ? dsFitSphere(opts.centerMode) : fitSphere(opts.centerMode); },
   viewFromCamera: (i) => viewFromCamera(i),
   pickCamera: (px, py) => pickCamera(px, py),
 };
@@ -161,8 +165,8 @@ function upTransform() {
 // outliers that make a bounding-box fit useless.
 function fitModel() {
   if (!model) return;
-  if (model.type === 'dataset') { if (dataset) fitDataset(dataset.fit); return; }
-  const fs = fitSphere();                       // [cx,cy,cz, medianDist] (native frame)
+  if (model.type === 'dataset') { if (dataset) fitDataset(dsFitSphere(opts.centerMode)); return; }
+  const fs = fitSphere(opts.centerMode);        // [cx,cy,cz, medianDist] (native frame)
   const c = mat3.mulVec(upTransform(), [fs[0], fs[1], fs[2]]);
   const r = 2.0 * fs[3] || 1;
   opts.gridRadius = r;
@@ -176,6 +180,28 @@ function setUpAxis(axis) {
   opts.upAxis = axis;
   lastSortDir = [0,0,0];
   dirty = true;
+}
+// Switch the centering: the model stays put and the orbit pivot moves to the
+// new centre, which is also what Reset View will fit to.
+function setCenterMode(mode) {
+  mode = mode | 0;
+  if (mode === opts.centerMode) return;
+  opts.centerMode = mode;
+  if (!model) return;
+  const fs = model.type === 'dataset' ? dsFitSphere(mode) : fitSphere(mode);
+  recenterAt(mat3.mulVec(upTransform(), [fs[0], fs[1], fs[2]]));
+}
+const CAMERA_CENTER_MODES = { 2: 1, 3: 4, 5: 4 };   // camera mode -> its point fallback
+// A file has no cameras, so the camera statistics are offered only over a
+// dataset; a selected one drops to the point statistic it would fall back to.
+function syncCenterMenu() {
+  const sel = $('center-mode');
+  const isDataset = !!(model && model.type === 'dataset');
+  for (const o of sel.options) o.disabled = !isDataset && (+o.value in CAMERA_CENTER_MODES);
+  if (!isDataset && opts.centerMode in CAMERA_CENTER_MODES) {
+    opts.centerMode = CAMERA_CENTER_MODES[opts.centerMode];
+    sel.value = String(opts.centerMode);
+  }
 }
 
 function forwardNative() {
@@ -350,11 +376,12 @@ async function loadSingleModel(entries) {
     model = { type:'mesh', nv: res.data.nv, nt: res.data.nt };
     showMeshUI(res.data);
   }
+  syncCenterMenu();
   // Only fit the camera for the first model of the session: replacing the
   // model (e.g. dropping the mesh of the same object after a splat) keeps
   // the current view. The scene scale (move/zoom speed) is still refreshed.
   if (firstModel) fitModel();
-  else { const fs = fitSphere(); nav._sceneScale = 2.0 * fs[3] || 1; opts.gridRadius = nav._sceneScale; }
+  else { const fs = fitSphere(opts.centerMode); nav._sceneScale = 2.0 * fs[3] || 1; opts.gridRadius = nav._sceneScale; }
   lastSortDir = [0,0,0]; lastSortMode = -1;
   if (model.type === 'splat') maybeSort(true);   // initial order, synchronous
   histCache.clear();
@@ -381,7 +408,6 @@ async function loadDataset(entries, token) {
   // (dsPickPoint) still works; it is freed when a non-dataset model loads.
   sortGen++; sortPending = null;       // invalidate any in-flight splat sort
 
-  const fit = res.fit;
   const frustumBase = res.frustumSize;
   const frustumMult = dataset ? dataset.frustumMult : 1.0;
   opts.frustumScale = frustumBase * frustumMult;
@@ -389,12 +415,14 @@ async function loadDataset(entries, token) {
     cameras: res.cameras,
     components: res.components || (dataset && dataset.components) || [],
     token: res.selectedToken || token,
-    fit, frustumBase, frustumMult,
+    frustumBase, frustumMult,
     pickR: res.frustum.pickR,   // size-1 per-camera frustum radii (ray picking)
   };
   model = { type:'dataset', numCameras: res.cameras.length, numPoints: res.points.count };
   opts.hoverCam = -1;
   showDatasetUI(res.summary);
+  syncCenterMenu();
+  const fit = dsFitSphere(opts.centerMode);
   if (firstDataset || token) fitDataset(fit); else nav._sceneScale = 2.0*(fit[3]||1);
   histCache.clear(); updateHistParams();
   $('drop-hint').style.display = 'none';
@@ -875,7 +903,13 @@ function pinchState(pointers) {
 // UI control wiring
 // ---------------------------------------------------------------------------
 function wireControls() {
-  const bind = (id, ev, fn) => $(id).addEventListener(ev, fn);
+  // A host page may carry a subset of the controls (viewer/test/test_ds.html).
+  // Throwing here would leave every control wired after it dead instead.
+  const bind = (id, ev, fn) => {
+    const el = $(id);
+    if (!el) { console.warn('no control #' + id); return; }
+    el.addEventListener(ev, fn);
+  };
   bind('nav-mode','change', e => nav.mode = e.target.value);
   bind('move-speed','input', e => { nav.speedExp = +e.target.value; $('v-speed').textContent = Math.pow(10,+e.target.value).toFixed(2)+'×'; });
   bind('btn-reset','click', () => { if (model) fitModel(); else nav.reset(); });
@@ -914,6 +948,7 @@ function wireControls() {
   });
   bind('fov','input', e => { camera.fov = +e.target.value*Math.PI/180; fovMemory[camera.model] = camera.fov; $('v-fov').textContent = e.target.value+'°'; dirty=true; });
   bind('up-axis','change', e => setUpAxis(e.target.checked ? 'y' : 'z'));
+  bind('center-mode','change', e => setCenterMode(e.target.value));
   bind('flat-shade','change', e => { opts.flatShade = e.target.checked; dirty=true; });
   bind('mesh-color','change', e => { opts.meshColor = e.target.checked; dirty=true; });
   bind('grid','change', e => { opts.showGrid = e.target.checked; dirty=true; });

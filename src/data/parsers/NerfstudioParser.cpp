@@ -222,9 +222,9 @@ ColmapPoints3D read_ply_points(const std::string& path) {
                 throw std::runtime_error("PLY: truncated " + path);
             for (int64_t i = 0; i < el.count; i++) {
                 const uint8_t* row = (const uint8_t*)p + (size_t)i * stride;
-                pts.xyz[i*3 + 0] = (float)ply_read_scalar(row + offsets[ix], el.props[ix].type);
-                pts.xyz[i*3 + 1] = (float)ply_read_scalar(row + offsets[iy], el.props[iy].type);
-                pts.xyz[i*3 + 2] = (float)ply_read_scalar(row + offsets[iz], el.props[iz].type);
+                pts.xyz[i*3 + 0] = ply_read_scalar(row + offsets[ix], el.props[ix].type);
+                pts.xyz[i*3 + 1] = ply_read_scalar(row + offsets[iy], el.props[iy].type);
+                pts.xyz[i*3 + 2] = ply_read_scalar(row + offsets[iz], el.props[iz].type);
                 pts.rgb[i*3 + 0] = to_u8(ply_read_scalar(row + offsets[ir], el.props[ir].type), el.props[ir].type);
                 pts.rgb[i*3 + 1] = to_u8(ply_read_scalar(row + offsets[ig], el.props[ig].type), el.props[ig].type);
                 pts.rgb[i*3 + 2] = to_u8(ply_read_scalar(row + offsets[ib], el.props[ib].type), el.props[ib].type);
@@ -241,9 +241,9 @@ ColmapPoints3D read_ply_points(const std::string& path) {
                         throw std::runtime_error("PLY: short ascii row in " + path);
                     p = q;
                 }
-                pts.xyz[i*3 + 0] = (float)vals[ix];
-                pts.xyz[i*3 + 1] = (float)vals[iy];
-                pts.xyz[i*3 + 2] = (float)vals[iz];
+                pts.xyz[i*3 + 0] = vals[ix];
+                pts.xyz[i*3 + 1] = vals[iy];
+                pts.xyz[i*3 + 2] = vals[iz];
                 pts.rgb[i*3 + 0] = to_u8(vals[ir], el.props[ir].type);
                 pts.rgb[i*3 + 1] = to_u8(vals[ig], el.props[ig].type);
                 pts.rgb[i*3 + 2] = to_u8(vals[ib], el.props[ib].type);
@@ -455,7 +455,7 @@ ParsedDataset parse_nerfstudio_meta(const JsonValue& meta,
               [](const Frame& a, const Frame& b) { return a.abs < b.abs; });
 
     // ---- All-frame c2w -------------------------------------------------------
-    auto read_c2w = [](const JsonValue& fr, float* out12) {
+    auto read_c2w = [](const JsonValue& fr, double* out12) {
         const JsonValue* tm = fr.find("transform_matrix");
         if (!tm || !tm->is_array() || tm->arr.size() < 3)
             throw std::runtime_error("NerfstudioParser: bad transform_matrix");
@@ -463,11 +463,11 @@ ParsedDataset parse_nerfstudio_meta(const JsonValue& meta,
             const JsonValue& row = tm->arr[r];
             if (!row.is_array() || row.arr.size() < 4)
                 throw std::runtime_error("NerfstudioParser: bad transform_matrix row");
-            for (int c = 0; c < 4; c++) out12[r*4 + c] = (float)row.arr[c].as_double();
+            for (int c = 0; c < 4; c++) out12[r*4 + c] = row.arr[c].as_double();
         }
     };
     int64_t n_all = (int64_t)frames.size();
-    std::vector<float> c2w_all(n_all * 12);
+    std::vector<double> c2w_all(n_all * 12);
     std::vector<double> positions(n_all * 3);
     for (int64_t i = 0; i < n_all; i++) {
         read_c2w(*frames[i].j, &c2w_all[i*12]);
@@ -479,7 +479,7 @@ ParsedDataset parse_nerfstudio_meta(const JsonValue& meta,
         std::vector<char> keep = dsparse::outlier_keep_mask(
             positions, n_all, cfg.outlier_threshold);
         std::vector<Frame> kept;
-        std::vector<float> kept_c2w;
+        std::vector<double> kept_c2w;
         for (int64_t i = 0; i < n_all; i++) {
             if (!keep[i]) continue;
             kept.push_back(frames[i]);
@@ -490,11 +490,101 @@ ParsedDataset parse_nerfstudio_meta(const JsonValue& meta,
         n_all = (int64_t)frames.size();
     }
 
+    // ---- Seed points ------------------------------------------------------
+    ColmapPoints3D points;
+    {
+        std::string ply_rel;
+        if (const JsonValue* v = meta.find("ply_file_path")) ply_rel = v->as_string();
+        else {
+            for (const char* cand : {"sparse_pc.ply", "pointcloud.ply"})
+                if (fs::exists(root / cand)) { ply_rel = cand; break; }
+        }
+        if (ply_rel.empty()) {
+            // Lenient (viewer) mode: a transforms.json with no point cloud
+            // still yields camera poses / frustums. The trainer requires the
+            // seed cloud.
+            if (cfg.require_image_files)
+                throw std::runtime_error(
+                    "NerfstudioParser: no initial point cloud found (ply_file_path / "
+                    "sparse_pc.ply / pointcloud.ply)");
+        } else if (cfg.require_image_files || fs::exists(root / ply_rel)) {
+            points = read_ply_points((root / ply_rel).string());
+        }
+    }
+
+    // ---- applied_transform inverse (train_frame="points" branch): poses and
+    // points go back to the ORIGINAL (pre-applied_transform) frame, which is
+    // where the centre is taken. -------------------------------------------
+    double A[3][3] = {{1,0,0},{0,1,0},{0,0,1}}, b[3] = {0, 0, 0};
+    bool applied = false;
+    if (const JsonValue* at = meta.find("applied_transform")) {
+        for (int r = 0; r < 3; r++) {
+            const JsonValue& row = at->arr.at(r);
+            for (int c = 0; c < 3; c++) A[r][c] = row.arr.at(c).as_double();
+            b[r] = row.arr.at(3).as_double();
+        }
+        for (int r = 0; r < 3 && !applied; r++)
+            for (int c = 0; c < 3; c++)
+                if (A[r][c] != (r == c ? 1.0 : 0.0) || b[r] != 0.0) { applied = true; break; }
+    }
+    std::vector<double> c2w_world = c2w_all;
+    if (applied) {
+        double Ai[3][3];
+        invert3x3d(A, Ai);
+        double bi[3];
+        for (int r = 0; r < 3; r++)
+            bi[r] = -(Ai[r][0]*b[0] + Ai[r][1]*b[1] + Ai[r][2]*b[2]);
+        // c2w' = inv(T) @ c2w  (c2w has implicit bottom row 0 0 0 1)
+        for (int64_t i = 0; i < n_all; i++) {
+            const double* m = &c2w_all[i*12];
+            double* out = &c2w_world[i*12];
+            for (int r = 0; r < 3; r++)
+                for (int c = 0; c < 4; c++)
+                    out[r*4 + c] = Ai[r][0]*m[0*4+c] + Ai[r][1]*m[1*4+c]
+                                 + Ai[r][2]*m[2*4+c] + (c == 3 ? bi[r] : 0.0);
+        }
+        for (int64_t i = 0; i < points.num(); i++) {
+            double* p = &points.xyz[i*3];
+            double x = Ai[0][0]*p[0] + Ai[0][1]*p[1] + Ai[0][2]*p[2] + bi[0];
+            double y = Ai[1][0]*p[0] + Ai[1][1]*p[1] + Ai[1][2]*p[2] + bi[1];
+            double z = Ai[2][0]*p[0] + Ai[2][1]*p[1] + Ai[2][2]*p[2] + bi[2];
+            p[0] = x; p[1] = y; p[2] = z;
+        }
+    }
+
+    // ---- Centering, over ALL post-outlier frames and every point, still in
+    // double. The same shift is A @ center + b in the transforms.json frame,
+    // after which the map between the two frames is A alone. ----------------
+    const dsparse::CenterMode center_mode = dsparse::center_mode_from_name(cfg.center_mode);
+    const std::array<double, 3> center = dsparse::scene_center(
+        center_mode, c2w_world.data(), n_all, points.xyz.data(), points.num());
+    double center_json[3];
+    for (int r = 0; r < 3; r++)
+        center_json[r] = A[r][0]*center[0] + A[r][1]*center[1] + A[r][2]*center[2] + b[r];
+    for (int64_t i = 0; i < n_all; i++)
+        for (int r = 0; r < 3; r++) {
+            c2w_world[i*12 + r*4 + 3] -= center[r];
+            c2w_all[i*12 + r*4 + 3]   -= center_json[r];
+        }
+    for (int64_t i = 0; i < points.num(); i++)
+        for (int r = 0; r < 3; r++) points.xyz[i*3 + r] -= center[r];
+
     // ---- train_frame_scale + normalized-frame similarity (all post-outlier
-    // frames, pre-split). ------------------------------------------------------
+    // frames, pre-split), in the transforms.json frame so the levelling
+    // rotation stays relative to the file's own axes. -----------------------
     double T_n_from_camera[16], R_align[9];
     double scale_factor = dsparse::compute_normalized_transform(
-        c2w_all, n_all, T_n_from_camera, R_align);
+        c2w_all.data(), n_all, T_n_from_camera, R_align);
+    // train_to_normalized = inv(T_n_from_camera @ [A | 0])
+    double T_n_from_train[16];
+    for (int r = 0; r < 4; r++)
+        for (int c = 0; c < 4; c++) {
+            double v = 0.0;
+            for (int m = 0; m < 3; m++)
+                v += T_n_from_camera[r*4 + m] * (c < 3 ? A[m][c] : 0.0);
+            if (c == 3) v += T_n_from_camera[r*4 + 3];
+            T_n_from_train[r*4 + c] = v;
+        }
 
     // ---- eval_mode train subset ----------------------------------------------
     std::vector<std::string> names(n_all);
@@ -505,6 +595,9 @@ ParsedDataset parse_nerfstudio_meta(const JsonValue& meta,
     const int64_t N = (int64_t)subset.size();
     ds.num_cameras = N;
     ds.train_frame_scale = (float)(scale_factor != 0.0 ? 1.0 / scale_factor : 1.0);
+    ds.center = center;
+    ds.center_mode = dsparse::kCenterModeNames[(int)center_mode];
+    ds.points = std::move(points);
     ds.c2w.resize(N * 12);
     ds.intrins.resize(N * 4);
     ds.dist_coeffs.resize(N * kCameraDistortionParams);
@@ -648,7 +741,7 @@ ParsedDataset parse_nerfstudio_meta(const JsonValue& meta,
         ds.intrins[j*4 + 1] = (float)fy;
         ds.intrins[j*4 + 2] = (float)cx;
         ds.intrins[j*4 + 3] = (float)cy;
-        std::copy(&c2w_all[subset[j]*12], &c2w_all[subset[j]*12] + 12, &ds.c2w[j*12]);
+        for (int k = 0; k < 12; k++) ds.c2w[j*12 + k] = (float)c2w_world[subset[j]*12 + k];
 
         // Auxiliary buffers: explicit frame paths win; directory-convention
         // probing as fallback (_add_auxiliary_buffers). Unlike the Python
@@ -678,80 +771,6 @@ ParsedDataset parse_nerfstudio_meta(const JsonValue& meta,
     if (any_depth)  ds.depth_filenames  = std::move(depth_files);
     if (any_normal) ds.normal_filenames = std::move(normal_files);
     print_lens_fits(lens_fits);
-
-    // ---- Seed points ------------------------------------------------------
-    std::string ply_rel;
-    if (const JsonValue* v = meta.find("ply_file_path")) ply_rel = v->as_string();
-    else {
-        for (const char* cand : {"sparse_pc.ply", "pointcloud.ply"})
-            if (fs::exists(root / cand)) { ply_rel = cand; break; }
-    }
-    if (ply_rel.empty()) {
-        // Lenient (viewer) mode: a transforms.json with no point cloud still
-        // yields camera poses / frustums. The trainer requires the seed cloud.
-        if (cfg.require_image_files)
-            throw std::runtime_error(
-                "NerfstudioParser: no initial point cloud found (ply_file_path / "
-                "sparse_pc.ply / pointcloud.ply)");
-    } else if (cfg.require_image_files || fs::exists(root / ply_rel)) {
-        ds.points = read_ply_points((root / ply_rel).string());
-    }
-
-    // ---- applied_transform inverse (train_frame="points" branch): poses and
-    // points go back to the ORIGINAL (pre-applied_transform) frame. Also folds
-    // into the viewer remap:
-    //   train_to_normalized = inv(T_n_from_camera @ applied)
-    double T_n_from_train[16];
-    std::copy(T_n_from_camera, T_n_from_camera + 16, T_n_from_train);
-    if (const JsonValue* at = meta.find("applied_transform")) {
-        double A[3][3], b[3];
-        for (int r = 0; r < 3; r++) {
-            const JsonValue& row = at->arr.at(r);
-            for (int c = 0; c < 3; c++) A[r][c] = row.arr.at(c).as_double();
-            b[r] = row.arr.at(3).as_double();
-        }
-        bool identity = true;
-        for (int r = 0; r < 3 && identity; r++)
-            for (int c = 0; c < 3; c++)
-                if (A[r][c] != (r == c ? 1.0 : 0.0) || b[r] != 0.0) { identity = false; break; }
-        if (!identity) {
-            // T_n_from_train = T_n_from_camera @ applied (both affine, 0001 rows)
-            double ap[16] = {A[0][0],A[0][1],A[0][2],b[0],
-                             A[1][0],A[1][1],A[1][2],b[1],
-                             A[2][0],A[2][1],A[2][2],b[2],
-                             0,0,0,1};
-            for (int r = 0; r < 4; r++)
-                for (int c = 0; c < 4; c++) {
-                    double v = 0.0;
-                    for (int m = 0; m < 4; m++)
-                        v += T_n_from_camera[r*4 + m] * ap[m*4 + c];
-                    T_n_from_train[r*4 + c] = v;
-                }
-            double Ai[3][3];
-            invert3x3d(A, Ai);
-            double bi[3];
-            for (int r = 0; r < 3; r++)
-                bi[r] = -(Ai[r][0]*b[0] + Ai[r][1]*b[1] + Ai[r][2]*b[2]);
-            // c2w' = inv(T) @ c2w  (c2w has implicit bottom row 0 0 0 1)
-            for (int64_t j = 0; j < N; j++) {
-                float* m = &ds.c2w[j*12];
-                double out[3][4];
-                for (int r = 0; r < 3; r++)
-                    for (int c = 0; c < 4; c++)
-                        out[r][c] = Ai[r][0]*m[0*4+c] + Ai[r][1]*m[1*4+c]
-                                  + Ai[r][2]*m[2*4+c] + (c == 3 ? bi[r] : 0.0);
-                for (int r = 0; r < 3; r++)
-                    for (int c = 0; c < 4; c++) m[r*4+c] = (float)out[r][c];
-            }
-            for (int64_t i = 0; i < ds.points.num(); i++) {
-                float* p = &ds.points.xyz[i*3];
-                double x = Ai[0][0]*p[0] + Ai[0][1]*p[1] + Ai[0][2]*p[2] + bi[0];
-                double y = Ai[1][0]*p[0] + Ai[1][1]*p[1] + Ai[1][2]*p[2] + bi[1];
-                double z = Ai[2][0]*p[0] + Ai[2][1]*p[1] + Ai[2][2]*p[2] + bi[2];
-                p[0] = (float)x; p[1] = (float)y; p[2] = (float)z;
-            }
-        }
-    }
 
     double T_remap[16];
     dsparse::invert_affine4x4(T_n_from_train, T_remap);

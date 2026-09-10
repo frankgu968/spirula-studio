@@ -50,6 +50,11 @@ struct ViewerRenderConfig {
     // Which engine scene slot this worker renders (Engine.h "Viewer scenes").
     // < 0 = whatever is bound, which is what a training session wants.
     int scene_slot = -1;
+    // What the client's view orbits about and Reset frames, one point per
+    // dsparse::CenterMode in the client's normalized frame. `center_cameras`
+    // is false over a file, which has none, so those modes are not offered.
+    dsparse::CenterTable centers{};
+    bool center_cameras = false;
 };
 
 struct ViewerHooks {

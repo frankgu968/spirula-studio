@@ -125,6 +125,10 @@ EngineStepConfig build_step_config(const TrainConfig& c, const RunState& st,
 // Flat config.json dump, one key per flag (config/TrainConfigJson.h).
 void save_config_json(const TrainConfig& c, const std::filesystem::path& out_dir,
                       const std::string& preset);
+// scene_transform.json: the similarity from the dataset's own frame to the
+// one the splats are trained in (data/SceneTransform.h).
+void save_scene_transform_json(const ParsedDataset& ds, const TrainConfig& c,
+                               const std::filesystem::path& out_dir);
 
 // "" when this config is runnable, else the sentence naming the flag that is
 // not implemented -- exactly what TrainerSession::check_config() throws. A

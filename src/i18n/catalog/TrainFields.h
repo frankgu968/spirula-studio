@@ -2068,6 +2068,85 @@ SS_MSG(outlier_threshold_help,
        "daha çoğunu eler; birkaç yanlış kestirilmiş duruş sahneyi gerip ölçeğini "
        "bozduğunda işe yarar. Tüm kameraları tutmak için sonsuzda bırakın."));
 
+SS_MSG(scene_center,
+    EN("Scene centering"), JA("シーンの中心合わせ"), ZH_HANS("场景居中"),
+    ZH_HANT("場景置中"), KO("장면 중심 맞추기"), DE("Szene zentrieren"),
+    FR("Centrage de la scène"), ES("Centrado de la escena"),
+    PT("Centralização da cena"), IT("Centratura della scena"),
+    NL("Scène centreren"), RU("Центрирование сцены"), TR("Sahne ortalama"));
+SS_MSG(scene_center_help,
+    EN("Move the dataset so this point becomes the origin before training, and "
+       "record the shift in scene_transform.json in the output folder. Splats "
+       "are then trained in the shifted frame. Useful for geo-referenced "
+       "reconstructions whose coordinates are millions of units from the "
+       "origin, where single precision would lose detail. `none` keeps the "
+       "dataset's own frame."),
+    JA("学習前にデータセットを移動し、この点を原点にします。移動量は出力フォルダの "
+       "scene_transform.json に記録され、スプラットは移動後の座標系で学習されます。"
+       "座標が原点から数百万単位も離れた地理参照付きの再構成では、単精度では細部が"
+       "失われるため有効です。`none` はデータセット自身の座標系をそのまま使います。"),
+    ZH_HANS("训练前平移数据集，使该点成为原点，并把平移量记录到输出文件夹的 "
+            "scene_transform.json 中；泼溅在平移后的坐标系中训练。适用于坐标距原点"
+            "数百万单位的地理参考重建，否则单精度会丢失细节。`none` 保留数据集自身"
+            "的坐标系。"),
+    ZH_HANT("訓練前平移資料集，使該點成為原點，並把平移量記錄到輸出資料夾的 "
+            "scene_transform.json 中；潑濺在平移後的座標系中訓練。適用於座標距原點"
+            "數百萬單位的地理參考重建，否則單精度會遺失細節。`none` 保留資料集自身"
+            "的座標系。"),
+    KO("학습 전에 데이터셋을 옮겨 이 점을 원점으로 삼고, 그 이동량을 출력 폴더의 "
+       "scene_transform.json에 기록합니다. 스플랫은 옮겨진 좌표계에서 학습됩니다. "
+       "좌표가 원점에서 수백만 단위 떨어진 지리 참조 복원에서는 단정밀도로 세부가 "
+       "사라지므로 유용합니다. `none`은 데이터셋 자체의 좌표계를 그대로 둡니다."),
+    DE("Verschiebt den Datensatz vor dem Training so, dass dieser Punkt zum "
+       "Ursprung wird, und hält die Verschiebung in scene_transform.json im "
+       "Ausgabeordner fest. Die Splats werden im verschobenen Bezugssystem "
+       "trainiert. Nützlich für georeferenzierte Rekonstruktionen, deren "
+       "Koordinaten Millionen Einheiten vom Ursprung entfernt liegen, wo einfache "
+       "Genauigkeit Details verliert. `none` behält das Bezugssystem des "
+       "Datensatzes."),
+    FR("Déplace le jeu de données avant l'entraînement pour que ce point devienne "
+       "l'origine, et note le décalage dans scene_transform.json dans le dossier "
+       "de sortie. Les splats sont alors entraînés dans le repère décalé. Utile "
+       "pour les reconstructions géoréférencées dont les coordonnées sont à des "
+       "millions d'unités de l'origine, où la simple précision perd des détails. "
+       "`none` garde le repère du jeu de données."),
+    ES("Desplaza el conjunto de datos antes de entrenar para que este punto sea "
+       "el origen, y anota el desplazamiento en scene_transform.json en la carpeta "
+       "de salida. Los splats se entrenan entonces en el sistema desplazado. Útil "
+       "para reconstrucciones georreferenciadas cuyas coordenadas están a millones "
+       "de unidades del origen, donde la precisión simple pierde detalle. `none` "
+       "conserva el sistema propio del conjunto de datos."),
+    PT("Desloca o conjunto de dados antes do treino para que este ponto vire a "
+       "origem, e registra o deslocamento em scene_transform.json na pasta de "
+       "saída. Os splats são então treinados no referencial deslocado. Útil para "
+       "reconstruções georreferenciadas cujas coordenadas ficam a milhões de "
+       "unidades da origem, onde a precisão simples perde detalhe. `none` mantém "
+       "o referencial do próprio conjunto de dados."),
+    IT("Sposta il dataset prima dell'addestramento in modo che questo punto "
+       "diventi l'origine, e annota lo spostamento in scene_transform.json nella "
+       "cartella di output. Gli splat vengono quindi addestrati nel sistema "
+       "spostato. Utile per ricostruzioni georeferenziate le cui coordinate "
+       "distano milioni di unità dall'origine, dove la precisione singola perde "
+       "dettaglio. `none` mantiene il sistema proprio del dataset."),
+    NL("Verschuift de dataset vóór het trainen zodat dit punt de oorsprong wordt, "
+       "en legt de verschuiving vast in scene_transform.json in de uitvoermap. De "
+       "splats worden dan in het verschoven stelsel getraind. Handig voor "
+       "gegeorefereerde reconstructies waarvan de coördinaten miljoenen eenheden "
+       "van de oorsprong liggen, waar enkele precisie detail verliest. `none` "
+       "behoudt het eigen stelsel van de dataset."),
+    RU("Сдвигает набор данных перед обучением так, чтобы эта точка стала началом "
+       "координат, и записывает сдвиг в scene_transform.json в папке вывода. "
+       "Сплаты обучаются в сдвинутой системе координат. Полезно для "
+       "геопривязанных реконструкций, координаты которых отстоят от начала на "
+       "миллионы единиц, где одинарная точность теряет детали. `none` сохраняет "
+       "собственную систему набора данных."),
+    TR("Eğitimden önce veri kümesini bu nokta başlangıç olacak şekilde kaydırır "
+       "ve kaydırmayı çıktı klasöründeki scene_transform.json dosyasına yazar. "
+       "Splatlar kaydırılmış çerçevede eğitilir. Koordinatları başlangıçtan "
+       "milyonlarca birim uzakta olan coğrafi referanslı yeniden kurmalar için "
+       "yararlıdır; tek duyarlık orada ayrıntı kaybeder. `none` veri kümesinin "
+       "kendi çerçevesini korur."));
+
 SS_MSG(relative_scale,
     EN("Scene scale multiplier"), JA("シーンの倍率"),
     ZH_HANS("场景缩放倍数"), ZH_HANT("場景縮放倍數"), KO("장면 배율"),
@@ -10099,6 +10178,53 @@ SS_MSG(choice_points,
     PT("pontos"),        IT("punti"),        NL("punten"),       RU("точки"),
     TR("noktalar"));
 
+SS_MSG(choice_none,
+    EN("none"),          JA("なし"),          ZH_HANS("无"),       ZH_HANT("無"),
+    KO("없음"),           DE("keine"),        FR("aucun"),        ES("ninguno"),
+    PT("nenhum"),        IT("nessuno"),      NL("geen"),         RU("нет"),
+    TR("yok"));
+
+SS_MSG(choice_point_median,
+    EN("point cloud median"), JA("点群の中央値"), ZH_HANS("点云中位数"),
+    ZH_HANT("點雲中位數"), KO("점군 중앙값"), DE("Median der Punktwolke"),
+    FR("médiane du nuage de points"), ES("mediana de la nube de puntos"),
+    PT("mediana da nuvem de pontos"), IT("mediana della nuvola di punti"),
+    NL("mediaan van de puntenwolk"), RU("медиана облака точек"),
+    TR("nokta bulutu ortancası"));
+
+SS_MSG(choice_camera_median,
+    EN("camera position median"), JA("カメラ位置の中央値"),
+    ZH_HANS("相机位置中位数"), ZH_HANT("相機位置中位數"), KO("카메라 위치 중앙값"),
+    DE("Median der Kamerapositionen"), FR("médiane des positions de caméra"),
+    ES("mediana de las posiciones de cámara"),
+    PT("mediana das posições das câmeras"),
+    IT("mediana delle posizioni delle camere"),
+    NL("mediaan van de cameraposities"), RU("медиана положений камер"),
+    TR("kamera konumu ortancası"));
+
+SS_MSG(choice_camera_focus,
+    EN("camera focus"),  JA("カメラの注視点"), ZH_HANS("相机注视点"),
+    ZH_HANT("相機注視點"), KO("카메라 주시점"), DE("Kamerafokus"),
+    FR("point de convergence des caméras"), ES("foco de las cámaras"),
+    PT("foco das câmeras"), IT("fuoco delle camere"), NL("camerafocus"),
+    RU("фокус камер"), TR("kamera odağı"));
+
+SS_MSG(choice_point_mean,
+    EN("point cloud mean"), JA("点群の平均"), ZH_HANS("点云平均"),
+    ZH_HANT("點雲平均"), KO("점군 평균"), DE("Mittelwert der Punktwolke"),
+    FR("moyenne du nuage de points"), ES("media de la nube de puntos"),
+    PT("média da nuvem de pontos"), IT("media della nuvola di punti"),
+    NL("gemiddelde van de puntenwolk"), RU("среднее облака точек"),
+    TR("nokta bulutu ortalaması"));
+
+SS_MSG(choice_camera_mean,
+    EN("camera position mean"), JA("カメラ位置の平均"), ZH_HANS("相机位置平均"),
+    ZH_HANT("相機位置平均"), KO("카메라 위치 평균"),
+    DE("Mittelwert der Kamerapositionen"), FR("moyenne des positions de caméra"),
+    ES("media de las posiciones de cámara"), PT("média das posições das câmeras"),
+    IT("media delle posizioni delle camere"), NL("gemiddelde van de cameraposities"),
+    RU("среднее положений камер"), TR("kamera konumu ortalaması"));
+
 SS_MSG(choice_mean,
     EN("mean"),          JA("平均"),          ZH_HANS("平均"),     ZH_HANT("平均"),
     KO("평균"),           DE("Mittelwert"),   FR("moyenne"),      ES("media"),
@@ -10195,6 +10321,13 @@ inline constexpr ChoiceText kChoiceText[] = {
     {"train_frame", "normalized", &choice_normalized},
     {"train_frame", "camera",     &choice_camera},
     {"train_frame", "points",     &choice_points},
+
+    {"scene_center", "none",          &choice_none},
+    {"scene_center", "point-median",  &choice_point_median},
+    {"scene_center", "camera-median", &choice_camera_median},
+    {"scene_center", "camera-focus",  &choice_camera_focus},
+    {"scene_center", "point-mean",    &choice_point_mean},
+    {"scene_center", "camera-mean",   &choice_camera_mean},
 
     {"densify_score_mode", "mean",   &choice_mean},
     {"densify_score_mode", "max",    &choice_max},

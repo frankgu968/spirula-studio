@@ -37,7 +37,8 @@ TorchTensorView tv(std::vector<float>& v, std::vector<int64_t> shape) {
 // viewer a kilometre away looking at a dot -- and the median is what is left.
 // `radius` comes back as the web viewer's model radius, twice the MEDIAN
 // distance from the centre.
-void scene_extent(const std::vector<float>& xyz, int64_t n,
+template <typename T>
+void scene_extent(const std::vector<T>& xyz, int64_t n,
                   float center[3], float& radius) {
     center[0] = center[1] = center[2] = 0.0f;
     radius = 1.0f;
@@ -49,15 +50,15 @@ void scene_extent(const std::vector<float>& xyz, int64_t n,
     tmp.reserve((size_t)(n / step + 1));
     for (int d = 0; d < 3; d++) {
         tmp.clear();
-        for (int64_t i = 0; i < n; i += step) tmp.push_back(xyz[(size_t)i * 3 + d]);
+        for (int64_t i = 0; i < n; i += step) tmp.push_back((float)xyz[(size_t)i * 3 + d]);
         std::nth_element(tmp.begin(), tmp.begin() + tmp.size() / 2, tmp.end());
         center[d] = tmp[tmp.size() / 2];
     }
     tmp.clear();
     for (int64_t i = 0; i < n; i += step) {
-        const float dx = xyz[(size_t)i * 3 + 0] - center[0];
-        const float dy = xyz[(size_t)i * 3 + 1] - center[1];
-        const float dz = xyz[(size_t)i * 3 + 2] - center[2];
+        const float dx = (float)xyz[(size_t)i * 3 + 0] - center[0];
+        const float dy = (float)xyz[(size_t)i * 3 + 1] - center[1];
+        const float dz = (float)xyz[(size_t)i * 3 + 2] - center[2];
         tmp.push_back(dx * dx + dy * dy + dz * dz);
     }
     std::nth_element(tmp.begin(), tmp.begin() + tmp.size() / 2, tmp.end());
@@ -354,6 +355,14 @@ void SplatViewer::run(std::string path) {
                                   0, 0, 0, 1};
         vc.base_camera_size = 0.0f;   // no cameras to draw
         vc.scene_slot = _pending_slot;
+        {
+            const double inv = unit > 1e-20f ? 1.0 / unit : 1.0;
+            const double A[12] = {inv, 0, 0, -inv * center[0],
+                                  0, inv, 0, -inv * center[1],
+                                  0, 0, inv, -inv * center[2]};
+            vc.centers = dsparse::scene_centers(nullptr, 0, c.means.data(),
+                                                c.num, 3, A);
+        }
 
         {
             std::lock_guard<std::mutex> lk(*_engine_mutex);

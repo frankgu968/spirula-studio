@@ -315,6 +315,28 @@ viewer's default camera, not the training coordinates. The unported methods
 (`pca`, `vertical`, `gsplat`, `focus`) still have a working Python reference:
 [notes/pose-normalization.md](notes/pose-normalization.md).
 
+`--scene-center` is the one option that DOES move the training coordinates:
+it translates every camera and seed point so the chosen statistic sits at the
+origin, in double precision, before anything is narrowed to float. That is
+what a geo-referenced reconstruction needs -- a model millions of units from
+its origin loses metres to single precision otherwise. The modes are
+`point-median` (geometric median of the seed cloud), `camera-median`,
+`camera-focus` (the point the optical axes converge on), `point-mean` and
+`camera-mean`; `none` (the default) keeps the frame the files came in. The
+shift, and the identity rotation and scale that go with it, are written to
+`scene_transform.json` in the run folder in every common spelling (4x4
+matrices, quaternions, Euler angles), so a downstream tool can put the
+splats back into the dataset's frame without converting anything by hand.
+The centre is taken over every frame before the train/eval split and over
+the whole seed cloud, so both splits, `spirula mesh` and the viewers -- all
+of which re-read `config.json` -- land in the same frame.
+
+The same six modes are also a *view* setting, offered by all three viewers as
+a "center" menu (camera position median by default) that moves the orbit
+pivot and nothing else. `src/data/SceneCenter.h` is the one implementation;
+the table of centres travels to a viewer on `ViewerRenderConfig::centers`,
+and the training viewer's browser client fetches it from `/scene`.
+
 ## Train/eval split
 
 `eval_mode` selects the strategy:

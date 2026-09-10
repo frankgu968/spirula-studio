@@ -16,6 +16,7 @@
 
 #include "app/webviewer/RenderWorker.h"
 #include "core/ColorSpace.h"
+#include "data/DatasetParser.h"
 #include "app/gui/NavCamera.h"
 #include "app/gui/PreviewRenderer.h"
 
@@ -64,12 +65,9 @@ public:
                              const std::string& key, float radius = 1.0f);
     // Engine renderer (needs engine_ready).
     void attach(spirula::TrainerSession& session);
-    // Engine renderer over something that is not a training session -- a splat
-    // file opened in the viewer (SplatViewer). `key` identifies the scene, so
-    // reopening the same file keeps the pose; `radius` is the scene radius in
-    // the client's normalized frame, which is 1 for anything normalized.
-    // There are no training cameras behind this, so the frustum controls are
-    // not offered.
+    // Engine renderer over a file (SplatViewer): `key` keeps the pose across
+    // a reopen and `radius` is the scene radius in the client frame; the
+    // centering menu comes from cfg.centers.
     void attach_scene(const ViewerRenderConfig& cfg, const ViewerHooks& hooks,
                       const std::string& key, float radius = 1.0f);
     // The render-option controls a VIEWER gets, on top of attach_scene. The
@@ -132,8 +130,17 @@ private:
     enum class Mode { None, Preview, Engine };
 
     void compute_framing(const spirula::TrainerSession& session);
-    // The client-frame default pose (web viewer cam.reset() + orbit(0,-250)).
+    // The client-frame default pose (web viewer cam.reset() + orbit(0,-250)),
+    // about the chosen centre.
     void reset_pose(float radius);
+    // The centering choices, in the model frame. `has_cameras` says whether
+    // the camera statistics are real or fell back to the point ones.
+    void set_centers(const dsparse::CenterTable* centers, bool has_cameras);
+    // The chosen centre in the shared frame; the origin when none is known.
+    void center_shared(float out[3]) const;
+    // The mode the menu shows: the point statistic a camera one fell back to
+    // when there are no cameras.
+    int effective_center_mode() const;
     // Frame the scene only when a different dataset arrives; a preview ->
     // engine transition on the same dataset keeps the navigated pose and
     // intrinsics (no jump when training starts).
@@ -215,6 +222,12 @@ private:
     bool _align_identity = true;
     bool _level_cameras = true;
     bool _gauge_metric = false;
+    // What the view orbits about and Reset view frames (dsparse::CenterMode),
+    // a point per mode in the model frame. Moves only the camera.
+    int _center_mode = (int)dsparse::CenterMode::CameraMedian;
+    dsparse::CenterTable _centers{};
+    bool _centers_known = false;
+    bool _center_has_cameras = false;
     // Model units per unit of the navigated frame: what turns the grid's cell
     // size into a length (ParsedDataset::train_frame_scale).
     float _scene_scale = 1.0f;

@@ -8,6 +8,7 @@
 #include "app/gui/Ui.h"
 
 #include "i18n/catalog/Gui.h"
+#include "i18n/catalog/TrainFields.h"
 #include "app/gui/GlLoader.h"   // GL types + 1.1 entry points
 
 #include "imgui.h"
@@ -61,18 +62,42 @@ void fov_to_intrinsics(float fov_deg, int w, int h, const char* model,
 // ---------------------------------------------------------------------------
 
 void ViewportPanel::reset_pose(float radius) {
-    // Match the web viewer's cam.reset() exactly: target = client-frame
-    // origin (the normalized frame is centered on the CAMERA POSES via
-    // center_method="poses", i.e. the captured object for object-centric
-    // datasets -- NOT the point-cloud centroid, which distant background
-    // points drag far away), pos = [0,0,1], then orbit(0, -250).
-    _cam.pos[0] = 0; _cam.pos[1] = 0; _cam.pos[2] = 1;
+    // The web viewer's cam.reset() about the chosen centre: target = centre,
+    // pos = centre + [0,0,1], then orbit(0, -250).
+    float c[3];
+    center_shared(c);
+    _cam.pos[0] = c[0]; _cam.pos[1] = c[1]; _cam.pos[2] = c[2] + 1.0f;
     _cam.rot[0] = _cam.rot[1] = _cam.rot[2] = 0; _cam.rot[3] = 1;
-    _cam.target[0] = _cam.target[1] = _cam.target[2] = 0;
+    _cam.target[0] = c[0]; _cam.target[1] = c[1]; _cam.target[2] = c[2];
     _cam.orbit(0, -250);
     _home = _cam;
     _home_dist = radius;
     _dirty = true;
+}
+
+void ViewportPanel::set_centers(const dsparse::CenterTable* centers, bool has_cameras) {
+    _centers_known = centers != nullptr;
+    _center_has_cameras = has_cameras;
+    if (centers) _centers = *centers;
+}
+
+int ViewportPanel::effective_center_mode() const {
+    using M = dsparse::CenterMode;
+    if (_center_has_cameras) return _center_mode;
+    switch ((M)_center_mode) {
+        case M::CameraMedian: return (int)M::PointMedian;
+        case M::CameraMean:
+        case M::CameraFocus:  return (int)M::PointMean;
+        default:              return _center_mode;
+    }
+}
+
+void ViewportPanel::center_shared(float out[3]) const {
+    if (!_centers_known) {
+        out[0] = out[1] = out[2] = 0.0f;
+        return;
+    }
+    shared_point(_centers[_center_mode].data(), out);
 }
 
 void ViewportPanel::compute_framing(const spirula::TrainerSession& session) {
@@ -105,6 +130,8 @@ bool ViewportPanel::maybe_frame(const spirula::TrainerSession& session) {
         std::to_string(session.ds.points.num());
     if (key == _framed_key) return false;   // same dataset: keep the pose
     _framed_key = key;
+    const dsparse::CenterTable centers = dsparse::scene_centers(session.ds);
+    set_centers(&centers, session.ds.num_cameras > 0);
     compute_framing(session);
     _show_cams = true;   // default on for a fresh dataset preview
     return true;
@@ -350,6 +377,10 @@ void ViewportPanel::attach_preview_data(const ParsedDataset& ds,
         _last_error = "preview renderer unavailable (OpenGL 3.2 required)";
         return;
     }
+    {
+        const dsparse::CenterTable centers = dsparse::scene_centers(ds);
+        set_centers(&centers, ds.num_cameras > 0);
+    }
     if (first) {
         _framed_key = key;
         reset_pose(radius);
@@ -391,6 +422,14 @@ void ViewportPanel::attach_preview_mesh(const meshing::MeshData& mesh,
         _last_error = "preview renderer unavailable (OpenGL 3.2 required)";
         return;
     }
+    {
+        double A[12];
+        for (int i = 0; i < 12; i++) A[i] = to_normalized ? to_normalized[i] : (i % 5 == 0);
+        const dsparse::CenterTable centers = dsparse::scene_centers(
+            nullptr, 0, mesh.V.empty() ? nullptr : mesh.V[0].data(),
+            (int64_t)mesh.V.size(), 3, A);
+        set_centers(&centers, false);
+    }
     if (key != _framed_key) {
         _framed_key = key;
         reset_pose(radius);
@@ -420,6 +459,7 @@ void ViewportPanel::attach_scene(const ViewerRenderConfig& cfg,
     _buffer_idx = std::min<int>(_buffer_idx, (int)_buffer_keys.size() - 1);
     _has_cameras = false;
     _show_cams = false;
+    set_centers(&cfg.centers, cfg.center_cameras);
     if (key != _framed_key) {
         _framed_key = key;
         reset_pose(radius);
@@ -669,6 +709,41 @@ void ViewportPanel::draw_controls(bool engine) {
             _dirty = true;
         }
         ui::help_on_hover(msg::viewport_level_cameras_help);
+    }
+    if (_centers_known) {
+        namespace fld = spirula::i18n::msg::field;
+        auto center_label = [](int mode) -> const char* {
+            const spirula::i18n::Msg* m =
+                fld::choice_label("scene_center", dsparse::kCenterModeNames[mode]);
+            return m ? m->get() : dsparse::kCenterModeNames[mode];
+        };
+        auto is_camera_mode = [](int mode) {
+            using M = dsparse::CenterMode;
+            return mode == (int)M::CameraMedian || mode == (int)M::CameraMean ||
+                   mode == (int)M::CameraFocus;
+        };
+        place(px(170.0f) + st.ItemInnerSpacing.x + text_w(msg::viewport_center.get()));
+        ImGui::SetNextItemWidth(px(170.0f));
+        if (ui::BeginComboRaw(ui::detail::label(msg::viewport_center),
+                              center_label(effective_center_mode()))) {
+            for (int i = 0; i < dsparse::kNumCenterModes; i++) {
+                if (!_center_has_cameras && is_camera_mode(i)) continue;
+                if (ui::SelectableRaw(center_label(i), i == _center_mode) &&
+                    i != _center_mode) {
+                    _center_mode = i;
+                    // The model stays where it is; the pivot moves to the new
+                    // centre, and so does the pose Reset view returns to.
+                    float c[3];
+                    center_shared(c);
+                    recenter_at(c);
+                    const NavCamera live = _cam;
+                    reset_pose(_home_dist);
+                    _cam = live;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ui::help_on_hover(msg::viewport_center_help);
     }
     if (engine) {
         place(px(66.0f) + st.ItemInnerSpacing.x +

@@ -76,6 +76,7 @@ MeshCameras load_cameras(const JsonValue& run_cfg, const std::string& data_dir,
     pcfg.metashape_ply = dp_str("metashape_ply", "");
     pcfg.metashape_psx = dp_str("metashape_psx", "");
     pcfg.downscale_rounding_mode = dp_str("downscale_rounding_mode", "floor");
+    pcfg.center_mode = dp_str("scene_center", "none");
     pcfg.probe_image_size = probe_image_size;
     {
         const JsonValue* v = run_cfg.find("train_resolution_divisor");

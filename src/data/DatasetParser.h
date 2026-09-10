@@ -11,6 +11,8 @@
 // that to the POST-split arrays engine_setup_data_manager consumes: identity
 // at K=1, or the pinhole faces camhost::plan_split_faces cuts a wide camera into.
 
+#include "data/SceneCenter.h"
+
 #include <array>
 #include <cstdint>
 #include <limits>
@@ -59,8 +61,10 @@ struct ColmapImage {
     std::string            name;      // path relative to the image dir
 };
 
+// xyz stays double: a geo-referenced model puts the cloud millions of units
+// from the origin, where float has a resolution of a metre.
 struct ColmapPoints3D {
-    std::vector<float>    xyz;        // [N, 3] flat
+    std::vector<double>   xyz;        // [N, 3] flat
     std::vector<uint8_t>  rgb;        // [N, 3] flat
     int64_t num() const { return (int64_t)xyz.size() / 3; }
 };
@@ -138,6 +142,11 @@ struct DatasetParserConfig {
     // the geometric median of all camera positions. inf = off (default).
     float outlier_threshold = std::numeric_limits<float>::infinity();
 
+    // Which point of the raw frame becomes the training frame's origin: a
+    // dsparse::CenterMode name. Computed over ALL post-outlier frames and every
+    // seed point, in double, before anything is narrowed to float.
+    std::string center_mode = "none";
+
     // Pixel size of an image file (data/ImageProbe.h). Set: every camera trains
     // at its own image's resolution. Null: a caller with no decoders -- the
     // WebAssembly viewer, given a dataset's cameras but never its pixels.
@@ -204,6 +213,12 @@ struct ParsedDataset {
 
     // Seed point cloud in the training frame.
     ColmapPoints3D           points;
+
+    // p_train = p_raw - center, where p_raw is the frame the files came in
+    // (COLMAP's own, or nerfstudio's with applied_transform undone). Zero
+    // unless DatasetParserConfig::center_mode asked for one.
+    std::array<double, 3>    center{0.0, 0.0, 0.0};
+    std::string              center_mode = "none";
 
     // 1 / scale_factor of the would-be normalized frame. Computed over ALL
     // frames, before the eval_mode subset is dropped.
@@ -317,19 +332,18 @@ PostSplitCameras bake_post_split(const ParsedDataset& ds,
 // ===========================================================================
 namespace dsparse {
 
-// Normalized-frame scale factor over c2w [N,3,4] (orient="up",
-// center="poses", auto-scale). Only the scalar matters for
-// train_frame="points". Returns 1/max_abs.
-double compute_normalized_scale_factor(const std::vector<float>& c2w, int64_t n);
-
-// Writes T_n_from_camera = scale * [R_align | -R_align @ center] (row-major
-// 4x4) and returns scale_factor; the viewer remap is inv(that @ applied).
-// `R_out` takes R_align alone, the one part of it a viewer can offer to skip.
-double compute_normalized_transform(const std::vector<float>& c2w, int64_t n,
+// T_n_from_camera = scale * [R_align | -R_align @ center] (row-major 4x4)
+// over c2w [N,3,4], orient="up" / center="poses"; returns scale_factor. The
+// viewer remap is inv(that @ applied); `R_out` is R_align alone.
+double compute_normalized_transform(const double* c2w, int64_t n,
                                     double T_out[16], double R_out[9] = nullptr);
 
 // inv([A|b; 0 1]) for a general invertible 3x3 A (row-major 4x4 in/out).
 void invert_affine4x4(const double in[16], double out[16]);
+
+// Every centering mode over a parsed dataset, in its NORMALIZED frame --
+// which is what both viewers navigate.
+CenterTable scene_centers(const ParsedDataset& ds);
 
 // eval_mode subset over N sorted frames, honouring cfg.split; identity for
 // "all". `names` are image filenames (used by eval_mode="filename").
