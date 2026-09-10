@@ -305,11 +305,10 @@ static std::string log_stamp() {
 #else
     localtime_r(&t, &tm);
 #endif
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "[%04d-%02d-%02d %02d:%02d:%02d.%03d] ",
-                  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                  tm.tm_hour, tm.tm_min, tm.tm_sec, ms);
-    return buf;
+    char date[32], frac[16];
+    std::strftime(date, sizeof(date), "[%Y-%m-%d %H:%M:%S", &tm);
+    std::snprintf(frac, sizeof(frac), ".%03d] ", ms);
+    return std::string(date) + frac;
 }
 
 // Run-start stamp for log file names: yyyyMMddHHmmss.
@@ -323,9 +322,7 @@ static std::string run_log_stamp() {
     localtime_r(&t, &tm);
 #endif
     char buf[24];
-    std::snprintf(buf, sizeof(buf), "%04d%02d%02d%02d%02d%02d",
-                  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                  tm.tm_hour, tm.tm_min, tm.tm_sec);
+    std::strftime(buf, sizeof(buf), "%Y%m%d%H%M%S", &tm);
     return buf;
 }
 
@@ -439,13 +436,13 @@ void GuiApp::write_run_settings(std::ofstream& f) {
         out += "  " + k + " = " + v + "\n";
     };
 
-    section("运行");
+    section(msg::runlog_section_run.get());
     line("run_started", run_log_stamp());
     line("engine", effective_engine() == Engine::BuiltIn ? "builtin" : "colmap");
     line("preset", _preset);
     if (!_preset_file.empty()) line("preset_file", _preset_file);
 
-    section("数据集准备");
+    section(msg::runlog_section_prep.get());
     line("workspace", _workspace);
     line("photo_import", photo_import_name(_photo_import));
     for (const PrepInput& s : _sources)
@@ -455,7 +452,7 @@ void GuiApp::write_run_settings(std::ofstream& f) {
     line("masking_enabled", cfg_str(_mask_enable));
     line("mask_detect_every", std::to_string(_mask_detect_every));
 
-    section("重建(SfM)");
+    section(i18n::format(msg::runlog_section_recon, {"SfM"}));
     const SfmJob& j = _sfm_job;
     line("quality", std::to_string(j.quality));
     line("data_type", std::to_string(j.data_type));
@@ -486,13 +483,13 @@ void GuiApp::write_run_settings(std::ofstream& f) {
     if (!j.extra_args.empty()) line("extra_args", j.extra_args);
 
     if (effective_engine() == Engine::Colmap) {
-        section("重建(COLMAP)");
+        section(i18n::format(msg::runlog_section_recon, {"COLMAP"}));
         line("colmap_exe", _colmap_job.colmap_exe);
         line("camera_model", _colmap_job.camera_model);
         line("camera_mode", std::to_string(_colmap_job.camera_mode));
     }
 
-    section("几何(深度与法线)");
+    section(msg::runlog_section_geometry.get());
     line("enabled", cfg_str(_geometry.enable));
     line("model", _geometry.model);
     line("want_depth", cfg_str(_geometry.want_depth));
@@ -510,12 +507,20 @@ void GuiApp::write_run_settings(std::ofstream& f) {
         SS_CONFIG_FIELDS(SS_SNAP_FIELD)
 #undef SS_SNAP_FIELD
         if (!body.empty()) {
-            out += "[训练:" + std::string(kTrainSections[si]) + "]\n";
+            const Msg* label = tmsg::section_label(kTrainSections[si]);
+            section(i18n::format(
+                msg::runlog_section_train,
+                {label ? label->get() : kTrainSections[si]}));
             out += body;
         }
     }
 
-    out += "=============================== 设置结束 ===============================\n\n";
+    // A fixed-width rule, so the separator still reads as one whatever the
+    // translated label measures.
+    const std::string end = msg::runlog_settings_end.get();
+    const int fill = std::max(72 - i18n::display_width(end) - 2, 6);
+    out += std::string(fill / 2, '=') + " " + end + " " +
+           std::string(fill - fill / 2, '=') + "\n\n";
     f << out;
     f.flush();
 }
