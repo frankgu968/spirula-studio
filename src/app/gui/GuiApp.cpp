@@ -468,6 +468,7 @@ void GuiApp::write_run_settings(std::ofstream& f) {
     if (!j.init_distortion.empty()) line("init_distortion", j.init_distortion);
     line("distortion_refine", std::to_string(j.distortion_refine));
     line("final_per_image_intrinsics", cfg_str(j.final_per_image_intrinsics));
+    line("final_free_rig", cfg_str(j.final_free_rig));
     line("max_features", std::to_string(j.max_features));
     line("max_image_size", std::to_string(j.max_image_size));
     line("metric_gps", std::to_string(j.metric_gps));
@@ -479,6 +480,7 @@ void GuiApp::write_run_settings(std::ofstream& f) {
     line("force_external_masking", cfg_str(j.prep.force_external_masking));
     line("video_fps", cfg_str(j.prep.video_fps));
     line("sharp_window", std::to_string(j.prep.sharp_window));
+    line("sync_tracks", cfg_str(j.prep.sync_tracks));
     line("max_frames", std::to_string(j.prep.max_frames));
     if (!j.extra_args.empty()) line("extra_args", j.extra_args);
 
@@ -1499,6 +1501,14 @@ void GuiApp::add_sources(const std::vector<std::string>& paths, bool replace) {
         static const std::atomic<bool> never{false};
         s.eac360 = probe_eac360(_ffmpeg_exe, s.path, never);
     }
+    // A file with several lenses starts as a rig of its own; the row can
+    // still say otherwise.
+    for (PrepInput& s : _sources) {
+        if (!s.is_video || s.video_tracks > 0) continue;
+        static const std::atomic<bool> never{false};
+        s.video_tracks = std::max(1, probe_video_tracks(_ffmpeg_exe, s.path, never));
+        if (s.eac360.valid() || s.video_tracks >= 2) s.rig = kRigOwn;
+    }
     for (const std::string& masks : mask_folders) {
         if (attach_mask_folder(_sources, masks))
             log(i18n::format(dmsg::log_masks_attached, {masks}));
@@ -2297,6 +2307,7 @@ void GuiApp::sync_dataset_jobs() {
     prep.pano = _sfm_job.prep.pano;
     prep.max_frames = _sfm_job.prep.max_frames;
     prep.force_external_decode = _sfm_job.prep.force_external_decode;
+    prep.sync_tracks = _sfm_job.prep.sync_tracks;
     prep.ffmpeg_exe = _ffmpeg_exe;
     prep.python_exe = _python_exe;
     prep.mask_enable = _mask_enable;
@@ -2812,6 +2823,13 @@ void GuiApp::draw_dataset_basics() {
         ImGui::SetNextItemWidth(px(220.0f));
         ui::SliderInt(dmsg::sharpness_window, &_sfm_job.prep.sharp_window, 1, 8);
         ui::help_on_hover(dmsg::sharpness_window_help);
+        bool any_multi = false;
+        for (const PrepInput& s : _sources)
+            any_multi = any_multi || (s.is_video && !s.eac360.valid() && s.video_tracks >= 2);
+        if (any_multi) {
+            ui::Checkbox(dmsg::sync_lenses, &_sfm_job.prep.sync_tracks);
+            ui::help_on_hover(dmsg::sync_lenses_help);
+        }
         if (any_pano360()) draw_pano360_options();
         if (!backends().builtin_video) {
             // What the note says is a build-configuration diagnostic and
@@ -2970,6 +2988,23 @@ void GuiApp::draw_source_cameras() {
         ui::InputFloat(dmsg::focal_x_width, &group_focal(_sources, g), 0, 0,
                        "%.4g");
         ui::help_on_hover(dmsg::focal_x_width_help);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(px(150.0f));
+        {
+            // "This input's lenses" only means something for an input with
+            // several: a lone photo folder or a one-lens video has none to rig.
+            const bool multi = g.sub >= 0 || !lens_dirs(_sfm_job.prep, in).empty();
+            const char* const items[] = {ui::detail::label(dmsg::rig_none),
+                                         ui::detail::label(dmsg::rig_own), "A", "B", "C", "D"};
+            int& rig = group_rig(_sources, g);
+            if (!multi && rig == kRigOwn) rig = kRigNone;
+            const int first = multi ? 0 : 1;
+            int idx = rig - first;
+            if (idx < 0) idx = 0;
+            if (ui::ComboRaw("##rig", &idx, items + first, kRigFirstShared + kRigShared - first))
+                rig = idx + first;
+            ui::help_on_hover(dmsg::rig_help);
+        }
         draw_lens_warning(dir, in.is_video, models[i], /*builtin=*/true);
         ImGui::PopID();
     }
@@ -4040,6 +4075,8 @@ void GuiApp::draw_sfm_advanced() {
                  &_sfm_job.final_per_image_intrinsics);
     ImGui::EndDisabled();
     ui::help_on_hover(dmsg::sfm_per_image_intrinsics_help);
+    ui::Checkbox(dmsg::sfm_final_free_rig, &_sfm_job.final_free_rig);
+    ui::help_on_hover(dmsg::sfm_final_free_rig_help);
 
     ImGui::SetNextItemWidth(px(260.0f));
     ui::InputInt(dmsg::max_features_auto, &_sfm_job.max_features);

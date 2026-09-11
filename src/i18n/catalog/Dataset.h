@@ -7060,6 +7060,197 @@ SS_MSG(sfm_metric_gps_help,
        "fotoğraflar atlanır; oturtulamayan model ölçeksiz yazılır ve bunu "
        "bildirir. Videonun kendi sensörleri yukarıdaki ayardır."));
 
+SS_MSG(rig_none,
+    EN("No rig"), JA("リグなし"), ZH_HANS("无装置"), ZH_HANT("無裝置"), KO("리그 없음"),
+    DE("Kein Rig"), FR("Pas de rig"), ES("Sin rig"), PT("Sem rig"), IT("Nessun rig"),
+    NL("Geen rig"), RU("Без рига"), TR("Rig yok"));
+
+SS_MSG(rig_own,
+    EN("This input's lenses"), JA("この入力のレンズ"), ZH_HANS("此输入的镜头"),
+    ZH_HANT("此輸入的鏡頭"), KO("이 입력의 렌즈"), DE("Die Objektive dieser Eingabe"),
+    FR("Les objectifs de cette entrée"), ES("Las lentes de esta entrada"),
+    PT("As lentes desta entrada"), IT("Gli obiettivi di questo ingresso"),
+    NL("De lenzen van deze invoer"), RU("Объективы этого входа"), TR("Bu girdinin lensleri"));
+
+SS_MSG(rig_help,
+    EN("Lenses on one rig keep a fixed relative pose, and the reconstruction "
+       "uses that: one pose per frame, a lens on the sky placed by its "
+       "neighbour. A multi-lens file is its own rig; rows sharing a letter "
+       "form one rig by file name -- across inputs when each contributes the "
+       "same lenses, as one rig behind several videos."),
+    JA("同じリグ上のレンズは相対姿勢が固定で、再構成はそれを利用します。フレームごとに"
+       "1 姿勢、空を向いたレンズも隣のレンズから配置されます。複数レンズのファイルは"
+       "それ自体がリグです。同じ文字を選んだ行はファイル名で 1 つのリグになります。"
+       "各入力が同じレンズを持つなら、複数の動画の背後にある 1 つのリグとして扱います。"),
+    ZH_HANS("同一装置上的镜头保持固定的相对位姿，重建会利用这一点：每帧一个位姿，朝天的"
+            "镜头由相邻镜头定位。多镜头文件自成一个装置；选同一字母的行按文件名组成一个"
+            "装置——各输入镜头相同时，视作多段视频背后的同一装置。"),
+    ZH_HANT("同一裝置上的鏡頭保持固定的相對姿態，重建會利用這一點：每幀一個姿態，朝天的"
+            "鏡頭由相鄰鏡頭定位。多鏡頭檔案自成一個裝置；選同一字母的列按檔名組成一個"
+            "裝置——各輸入鏡頭相同時，視作多段影片背後的同一裝置。"),
+    KO("한 리그의 렌즈들은 상대 자세가 고정되어 있고 재구성은 그것을 이용합니다. 프레임마다 "
+       "자세 하나, 하늘을 향한 렌즈도 이웃이 배치합니다. 다중 렌즈 파일은 그 자체가 리그이고, "
+       "같은 글자를 고른 행은 파일 이름으로 하나의 리그가 됩니다. 각 입력이 같은 렌즈를 내면 "
+       "여러 영상 뒤의 한 리그로 봅니다."),
+    DE("Objektive eines Rigs behalten eine feste relative Pose, und die "
+       "Rekonstruktion nutzt das: eine Pose je Frame, ein Objektiv zum Himmel von "
+       "seinem Nachbarn platziert. Eine Mehrlinsendatei ist ihr eigenes Rig; "
+       "Zeilen mit demselben Buchstaben bilden nach Dateiname ein Rig -- über "
+       "Eingaben hinweg als ein Rig hinter mehreren Videos, wenn jede dieselben "
+       "Objektive beisteuert."),
+    FR("Les objectifs d'un même rig gardent une pose relative fixe, et la "
+       "reconstruction s'en sert : une pose par image, un objectif vers le ciel "
+       "placé par son voisin. Un fichier multi-objectifs est son propre rig ; les "
+       "lignes partageant une lettre forment un rig par nom de fichier -- entre "
+       "entrées comme un seul rig derrière plusieurs vidéos, quand chacune "
+       "apporte les mêmes objectifs."),
+    ES("Las lentes de un mismo rig mantienen una pose relativa fija y la "
+       "reconstrucción lo aprovecha: una pose por cuadro, una lente hacia el cielo "
+       "colocada por su vecina. Un archivo multilente es su propio rig; las filas "
+       "que comparten una letra forman un rig por nombre de archivo -- entre "
+       "entradas como un solo rig tras varios vídeos, cuando cada una aporta las "
+       "mismas lentes."),
+    PT("As lentes de um mesmo rig mantêm uma pose relativa fixa e a reconstrução "
+       "usa isso: uma pose por quadro, uma lente virada ao céu posicionada pela "
+       "vizinha. Um ficheiro multilente é o seu próprio rig; linhas que partilham "
+       "uma letra formam um rig por nome de ficheiro -- entre entradas como um só "
+       "rig por trás de vários vídeos, quando cada uma traz as mesmas lentes."),
+    IT("Gli obiettivi di uno stesso rig mantengono una posa relativa fissa e la "
+       "ricostruzione lo sfrutta: una posa per fotogramma, un obiettivo verso il "
+       "cielo posizionato dal vicino. Un file multi-obiettivo è un rig a sé; le "
+       "righe che condividono una lettera formano un rig per nome di file -- tra "
+       "ingressi come un solo rig dietro più video, quando ciascuno porta gli "
+       "stessi obiettivi."),
+    NL("Lenzen op één rig houden een vaste relatieve pose en de reconstructie "
+       "gebruikt dat: één pose per frame, een lens naar de lucht geplaatst door "
+       "zijn buur. Een bestand met meerdere lenzen is zijn eigen rig; rijen met "
+       "dezelfde letter vormen één rig op bestandsnaam -- over invoeren heen als "
+       "één rig achter meerdere video's, wanneer elke dezelfde lenzen levert."),
+    RU("Объективы одного рига сохраняют фиксированную относительную позу, и "
+       "реконструкция этим пользуется: одна поза на кадр, объектив в небо "
+       "размещается по соседу. Файл с несколькими объективами -- сам себе риг; "
+       "строки с одной буквой образуют риг по имени файла -- между входами как "
+       "один риг за несколькими видео, когда каждый даёт те же объективы."),
+    TR("Bir rigdeki lensler sabit göreli duruşu korur ve yeniden kurulum bunu "
+       "kullanır: kare başına bir duruş, gökyüzüne bakan lens komşusunca "
+       "yerleştirilir. Çok lensli bir dosya kendi rigidir; aynı harfi paylaşan "
+       "satırlar dosya adına göre tek rig olur -- her girdi aynı lensleri "
+       "veriyorsa girdiler arasında birkaç videonun ardındaki tek rig olarak."));
+
+SS_MSG(sync_lenses,
+    EN("Synchronize lenses"), JA("レンズを同期"), ZH_HANS("同步镜头"), ZH_HANT("同步鏡頭"),
+    KO("렌즈 동기화"), DE("Objektive synchronisieren"), FR("Synchroniser les objectifs"),
+    ES("Sincronizar lentes"), PT("Sincronizar lentes"), IT("Sincronizza gli obiettivi"),
+    NL("Lenzen synchroniseren"), RU("Синхронизировать объективы"), TR("Lensleri eşzamanla"));
+
+SS_MSG(sync_lenses_help,
+    EN("Keep the same instants from every lens of a dual-fisheye file (one "
+       "sharpness window over both), so every frame is a rig frame. Off, each "
+       "lens keeps its own sharpest frame and only the coincidences form rig "
+       "frames. Built-in decoder only."),
+    JA("デュアル魚眼ファイルの全レンズで同じ瞬間を残します（シャープさの判定窓は両方"
+       "共通）。すべてのフレームがリグフレームになります。オフなら各レンズが自分の"
+       "いちばん鮮明なフレームを残し、偶然一致したものだけがリグフレームになります。"
+       "内蔵デコーダのみ。"),
+    ZH_HANS("双鱼眼文件的每个镜头保留相同时刻（清晰度窗口对两者共用），这样每一帧都是"
+            "装置帧。关闭时各镜头保留各自最清晰的帧，只有恰好重合的才构成装置帧。"
+            "仅内置解码器。"),
+    ZH_HANT("雙魚眼檔案的每個鏡頭保留相同時刻（清晰度視窗對兩者共用），這樣每一幀都是"
+            "裝置幀。關閉時各鏡頭保留各自最清晰的幀，只有恰好重合的才構成裝置幀。"
+            "僅內建解碼器。"),
+    KO("이중 어안 파일의 모든 렌즈에서 같은 순간을 남깁니다(선명도 창은 둘에 하나). 그러면 "
+       "모든 프레임이 리그 프레임이 됩니다. 끄면 렌즈마다 제일 선명한 프레임을 따로 남기고 "
+       "우연히 겹친 것만 리그 프레임이 됩니다. 내장 디코더에서만."),
+    DE("Aus jedem Objektiv einer Dual-Fisheye-Datei dieselben Augenblicke behalten "
+       "(ein Schärfefenster über beide), damit jedes Bild ein Rig-Frame ist. Aus: "
+       "jedes Objektiv behält sein schärfstes Bild, und nur die Zufallstreffer "
+       "bilden Rig-Frames. Nur mit dem eingebauten Decoder."),
+    FR("Garder les mêmes instants de chaque objectif d'un fichier double fisheye "
+       "(une fenêtre de netteté sur les deux), pour que chaque image soit une "
+       "image de rig. Désactivé, chaque objectif garde sa propre image la plus "
+       "nette et seules les coïncidences forment des images de rig. Décodeur "
+       "intégré uniquement."),
+    ES("Conservar los mismos instantes de cada lente de un archivo doble ojo de "
+       "pez (una ventana de nitidez sobre ambas), para que cada cuadro sea un "
+       "cuadro de rig. Apagado, cada lente conserva su propio cuadro más nítido y "
+       "solo las coincidencias forman cuadros de rig. Solo con el decodificador "
+       "integrado."),
+    PT("Guardar os mesmos instantes de cada lente de um ficheiro de duplo olho de "
+       "peixe (uma janela de nitidez sobre ambas), para que cada quadro seja um "
+       "quadro de rig. Desligado, cada lente guarda o seu quadro mais nítido e só "
+       "as coincidências formam quadros de rig. Apenas com o descodificador "
+       "integrado."),
+    IT("Tenere gli stessi istanti da ogni obiettivo di un file dual fisheye (una "
+       "finestra di nitidezza su entrambi), così ogni fotogramma è un fotogramma "
+       "di rig. Spento, ogni obiettivo tiene il proprio fotogramma più nitido e "
+       "solo le coincidenze formano fotogrammi di rig. Solo con il decoder "
+       "integrato."),
+    NL("Dezelfde momenten van elke lens van een dual-fisheye-bestand houden (één "
+       "scherptevenster over beide), zodat elk frame een rigframe is. Uit houdt "
+       "elke lens zijn eigen scherpste frame en alleen de toevalstreffers vormen "
+       "rigframes. Alleen met de ingebouwde decoder."),
+    RU("Сохранять одни и те же мгновения с каждого объектива двойного фишая (одно "
+       "окно резкости на оба), чтобы каждый кадр был кадром рига. Выкл.: каждый "
+       "объектив оставляет свой самый резкий кадр, и лишь совпадения образуют "
+       "кадры рига. Только со встроенным декодером."),
+    TR("Çift balıkgözü dosyasının her lensinden aynı anları tut (iki lens için tek "
+       "keskinlik penceresi); böylece her kare bir rig karesi olur. Kapalıyken "
+       "her lens kendi en keskin karesini tutar ve yalnızca çakışanlar rig "
+       "karesi olur. Yalnızca yerleşik çözücüyle."));
+
+SS_MSG(sfm_final_free_rig,
+    EN("Release the rig at the end"), JA("最後にリグを解放"), ZH_HANS("最后解除装置约束"),
+    ZH_HANT("最後解除裝置約束"), KO("마지막에 리그 해제"), DE("Rig am Ende freigeben"),
+    FR("Libérer le rig à la fin"), ES("Liberar el rig al final"), PT("Liberar o rig no fim"),
+    IT("Rilascia il rig alla fine"), NL("Rig aan het eind loslaten"),
+    RU("Освободить риг в конце"), TR("Sonunda rigi serbest bırak"));
+
+SS_MSG(sfm_final_free_rig_help,
+    EN("After the reconstruction, one last bundle adjustment with the rig set "
+       "aside so every image settles on its own pose. For a mount that flexed or "
+       "lenses that did not fire together; off, the rig holds to the end."),
+    JA("再構成の後に、リグ拘束を外したバンドル調整を 1 回行い、各画像を単独の姿勢に"
+       "落ち着かせます。マウントがたわんだ、レンズの撮影時刻がずれたといった場合向け。"
+       "オフなら最後までリグを保ちます。"),
+    ZH_HANS("重建之后再做一次不带装置约束的光束法平差，让每张图像落到各自的位姿。适合"
+            "支架变形或镜头未同步拍摄的情况；关闭则装置约束保持到底。"),
+    ZH_HANT("重建之後再做一次不帶裝置約束的光束法平差，讓每張影像落到各自的姿態。適合"
+            "支架變形或鏡頭未同步拍攝的情況；關閉則裝置約束保持到底。"),
+    KO("재구성 뒤에 리그 제약을 푼 번들 조정을 한 번 더 해 각 이미지가 제 자세에 안착하게 "
+       "합니다. 마운트가 휘었거나 렌즈가 동시에 찍히지 않았을 때를 위한 것이고, 끄면 리그가 "
+       "끝까지 유지됩니다."),
+    DE("Nach der Rekonstruktion eine letzte Bündelausgleichung ohne Rig-Bindung, "
+       "damit jedes Bild auf seiner eigenen Pose zur Ruhe kommt. Für eine "
+       "Halterung, die sich verbogen hat, oder Objektive, die nicht gleichzeitig "
+       "auslösten; aus hält das Rig bis zum Schluss."),
+    FR("Après la reconstruction, un dernier ajustement de faisceaux sans la "
+       "contrainte du rig pour que chaque image se pose sur sa propre pose. Pour "
+       "une monture qui a fléchi ou des objectifs qui n'ont pas déclenché "
+       "ensemble ; désactivé, le rig tient jusqu'au bout."),
+    ES("Tras la reconstrucción, un último ajuste de haces con el rig apartado "
+       "para que cada imagen se asiente en su propia pose. Para una montura que "
+       "flexionó o lentes que no dispararon a la vez; apagado, el rig se mantiene "
+       "hasta el final."),
+    PT("Após a reconstrução, um último ajuste de feixes com o rig posto de lado "
+       "para que cada imagem assente na sua própria pose. Para um suporte que "
+       "cedeu ou lentes que não dispararam juntas; desligado, o rig mantém-se "
+       "até ao fim."),
+    IT("Dopo la ricostruzione, un ultimo bundle adjustment con il rig messo da "
+       "parte, così ogni immagine si assesta sulla propria posa. Per un supporto "
+       "che ha flesso o obiettivi che non hanno scattato insieme; spento, il rig "
+       "tiene fino alla fine."),
+    NL("Na de reconstructie één laatste bundelvereffening met het rig terzijde, "
+       "zodat elk beeld op zijn eigen pose tot rust komt. Voor een bevestiging "
+       "die doorboog of lenzen die niet gelijk afgingen; uit houdt het rig tot "
+       "het eind."),
+    RU("После реконструкции последнее уравнивание связок без рига, чтобы каждое "
+       "изображение устоялось на собственной позе. Для крепления, которое "
+       "погнулось, или объективов, сработавших не одновременно; выкл. -- риг "
+       "держится до конца."),
+    TR("Yeniden kurulumdan sonra, her görüntünün kendi duruşuna oturması için rig "
+       "bir kenara konularak son bir demet ayarı. Esneyen bir montaj ya da aynı "
+       "anda çekmeyen lensler için; kapalıyken rig sona kadar tutulur."));
+
 SS_MSG(sfm_per_image_intrinsics,
     EN("Per-image intrinsics at the end"),
     JA("最後に画像ごとの内部パラメータ"),

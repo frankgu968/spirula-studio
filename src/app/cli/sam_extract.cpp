@@ -81,6 +81,7 @@ void usage() {
     help_row("-r, --rotate <deg>", H::xh_rotate);
     help_row("    --scale <f>", H::xh_scale);
     help_row("    --track <i>", H::xh_track);
+    help_row("    --sync", H::xh_sync);
     help_row("    --threads <n>", H::xh_threads);
 
     std::fprintf(stderr, "\n%s\n", H::xh_360_section.get());
@@ -114,6 +115,7 @@ struct Options {
     int    quality = 95, rotate = 0;
     float  scale = 1.0f;
     int    track = -1;
+    bool   sync = false;
     int    threads = 0;
 
     std::string pano_mode = "faces";
@@ -150,6 +152,7 @@ bool parse_args(int argc, char** argv, Options& o) {
         else if (a == "-r" || a == "--rotate") o.rotate = std::atoi(next("--rotate"));
         else if (a == "--scale") o.scale = std::strtof(next("--scale"), nullptr);
         else if (a == "--track") o.track = std::atoi(next("--track"));
+        else if (a == "--sync") o.sync = true;
         else if (a == "--threads") o.threads = std::atoi(next("--threads"));
         else if (a == "--360") o.pano_mode = next("--360");
         else if (a == "--360-size") o.pano.size = std::atoi(next("--360-size"));
@@ -243,6 +246,7 @@ int sam_cli_extract(int argc, char** argv) {
     job.rotate = o.rotate;
     job.scale = o.scale;
     job.track = o.track;
+    job.sync_tracks = o.sync;
     job.threads = o.threads;
     job.write_overlay = o.overlay;
     // A 360 file is recognised by its packing, not by its name, and only then
